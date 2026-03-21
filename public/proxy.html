@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Sistema · Proxy</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:  #080808; --bar: rgba(8,8,8,.98); --bd: rgba(255,255,255,.07);
+  --bhi: rgba(255,255,255,.14); --tx: rgba(255,255,255,.82); --dm: rgba(255,255,255,.3);
+  --ac: #e87c3a; --bl: #5b9cf6; --gr: #3fc87a; --rd: #f06060; --yw: #d4b86a;
+  --mn: 'IBM Plex Mono', monospace;
+}
+html, body { width:100%; height:100%; overflow:hidden; background:var(--bg); font-family:var(--mn); color:var(--tx); }
+::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); }
+
+/* ── TOPBAR ── */
+#tb {
+  height:42px; display:flex; align-items:center; gap:6px; padding:0 10px;
+  background:var(--bar); border-bottom:1px solid var(--bd);
+  position:fixed; top:0; left:0; right:0; z-index:999;
+}
+.tb-brand { font-size:.6rem; color:rgba(255,255,255,.2); letter-spacing:.1em; }
+.tb-brand span { color:var(--ac); }
+.tb-sep { width:1px; height:16px; background:var(--bd); margin:0 3px; }
+#url-in {
+  flex:1; background:rgba(255,255,255,.05); border:1px solid var(--bd);
+  border-radius:5px; padding:4px 10px; color:var(--tx); font-family:var(--mn);
+  font-size:.62rem; outline:none; transition:border-color .15s;
+}
+#url-in:focus { border-color:rgba(232,124,58,.45); }
+#url-in::placeholder { color:rgba(255,255,255,.14); }
+.tb-btn {
+  padding:4px 10px; border-radius:5px; border:1px solid var(--bd);
+  background:rgba(255,255,255,.04); color:var(--dm); font-family:var(--mn);
+  font-size:.58rem; cursor:pointer; transition:all .13s; white-space:nowrap;
+  display:flex; align-items:center; gap:5px;
+}
+.tb-btn:hover { background:rgba(255,255,255,.09); color:var(--tx); border-color:var(--bhi); }
+.tb-btn.go  { border-color:rgba(232,124,58,.3); color:var(--ac); background:rgba(232,124,58,.08); }
+.tb-btn.go:hover { background:rgba(232,124,58,.18); }
+.tb-btn.pw  { border-color:rgba(91,156,246,.3); color:var(--bl); background:rgba(91,156,246,.08); }
+.tb-btn.pw:hover { background:rgba(91,156,246,.18); }
+.tb-btn.sc  { border-color:rgba(63,200,122,.3); color:var(--gr); background:rgba(63,200,122,.08); }
+.status-dot { width:5px; height:5px; border-radius:50%; background:var(--dm); flex-shrink:0; }
+.status-dot.ok { background:var(--gr); box-shadow:0 0 4px var(--gr); }
+.status-dot.ld { background:var(--bl); animation:blink .7s infinite; }
+.status-dot.er { background:var(--rd); }
+#method-badge {
+  font-size:.5rem; padding:1px 6px; border-radius:3px;
+  background:rgba(255,255,255,.05); border:1px solid var(--bd); color:var(--dm);
+  white-space:nowrap;
+}
+#method-badge.pw  { background:rgba(91,156,246,.08); border-color:rgba(91,156,246,.25); color:var(--bl); }
+#method-badge.cors { background:rgba(212,184,106,.08); border-color:rgba(212,184,106,.25); color:var(--yw); }
+#ms-badge { font-size:.5rem; color:rgba(255,255,255,.2); }
+
+/* ── VIEWER ── */
+#viewer-wrap {
+  position:fixed; top:42px; left:0; right:0; bottom:42px;
+  display:flex; flex-direction:column;
+}
+#viewer-frame {
+  flex:1; border:none; background:#fff; display:none;
+}
+#viewer-empty {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; color:var(--dm); font-size:.62rem; text-align:center;
+}
+.empty-icon { font-size:2rem; opacity:.1; }
+#viewer-loading {
+  flex:1; display:none; align-items:center; justify-content:center;
+  flex-direction:column; gap:14px; color:var(--dm); font-size:.6rem;
+}
+.spin {
+  width:28px; height:28px; border:2px solid var(--bd);
+  border-top-color:var(--ac); border-radius:50%; animation:spin .7s linear infinite;
+}
+#load-msg { color:var(--dm); font-size:.58rem; letter-spacing:.04em; }
+#screenshot-wrap { display:none; flex:1; overflow:auto; padding:1rem; background:#111; }
+#screenshot-img   { max-width:100%; border:1px solid var(--bd); border-radius:4px; }
+
+/* ── STATUSBAR ── */
+#sb {
+  height:42px; display:flex; align-items:center; gap:8px; padding:0 10px;
+  background:var(--bar); border-top:1px solid var(--bd);
+  position:fixed; bottom:0; left:0; right:0; font-size:.55rem; color:var(--dm);
+}
+#sb-url  { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sb-sep  { width:1px; height:14px; background:var(--bd); }
+#proxy-chain {
+  display:flex; gap:4px; align-items:center;
+}
+.chain-item {
+  padding:1px 6px; border-radius:3px; font-size:.49rem;
+  border:1px solid var(--bd); background:rgba(255,255,255,.03); color:var(--dm);
+}
+.chain-item.active { border-color:rgba(91,156,246,.3); color:var(--bl); background:rgba(91,156,246,.06); }
+.chain-item.ok     { border-color:rgba(63,200,122,.3); color:var(--gr); background:rgba(63,200,122,.06); }
+.chain-item.fail   { border-color:rgba(240,96,96,.25); color:var(--rd); opacity:.5; }
+
+@keyframes spin   { to { transform:rotate(360deg) } }
+@keyframes blink  { 0%,100%{opacity:1} 50%{opacity:.3} }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="tb">
+  <span class="tb-brand"><span>§</span> proxy</span>
+  <div class="tb-sep"></div>
+  <input id="url-in" type="text" placeholder="https://example.com"
+    onkeydown="if(event.key==='Enter')browse()"
+    oninput="document.getElementById('url-in').style.borderColor=''">
+  <button class="tb-btn go" onclick="browse()">▷ abrir</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn pw"  onclick="browseMode='playwright';browse()" title="Forçar Playwright (JS completo)">⬛ playwright</button>
+  <button class="tb-btn sc"  onclick="browseMode='screenshot';browse()" title="Screenshot do site">⊡ screenshot</button>
+  <button class="tb-btn"     onclick="browseMode='cors';browse()"      title="Forçar CORS fallback">⛾ cors</button>
+  <div class="tb-sep"></div>
+  <div class="status-dot" id="sdot"></div>
+  <span id="method-badge">—</span>
+  <span id="ms-badge"></span>
+</div>
+
+<!-- VIEWER -->
+<div id="viewer-wrap">
+  <div id="viewer-empty">
+    <div class="empty-icon">⧉</div>
+    <span>insira uma URL e clique ▷ abrir</span>
+    <span style="font-size:.52rem;margin-top:4px">playwright (JS completo) → cors fallback automático</span>
+  </div>
+  <div id="viewer-loading">
+    <div class="spin"></div>
+    <span id="load-msg">conectando…</span>
+  </div>
+  <iframe id="viewer-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+  <div id="screenshot-wrap">
+    <img id="screenshot-img" alt="screenshot">
+  </div>
+</div>
+
+<!-- STATUSBAR -->
+<div id="sb">
+  <span id="sb-url">—</span>
+  <div class="sb-sep"></div>
+  <div id="proxy-chain">
+    <span class="chain-item" id="ci-playwright">playwright</span>
+    <span style="font-size:.5rem;opacity:.3">→</span>
+    <span class="chain-item" id="ci-corsproxy">corsproxy</span>
+    <span style="font-size:.5rem;opacity:.3">→</span>
+    <span class="chain-item" id="ci-allorigins">allorigins</span>
+    <span style="font-size:.5rem;opacity:.3">→</span>
+    <span class="chain-item" id="ci-codetabs">codetabs</span>
+  </div>
+</div>
+
+<script>
+let browseMode = 'auto'; // auto | playwright | cors | screenshot
+
+const $ = id => document.getElementById(id);
+const CHAIN_IDS = ['playwright','corsproxy','allorigins','codetabs'];
+
+function resetChain() {
+  CHAIN_IDS.forEach(id => {
+    const el = $('ci-'+id);
+    if (el) { el.className = 'chain-item'; }
+  });
+}
+function setChainState(id, state) {
+  const el = $('ci-'+id); if (!el) return;
+  el.className = 'chain-item ' + state;
+}
+
+function setLoading(msg) {
+  $('viewer-empty').style.display   = 'none';
+  $('viewer-frame').style.display   = 'none';
+  $('screenshot-wrap').style.display= 'none';
+  $('viewer-loading').style.display = 'flex';
+  $('load-msg').textContent = msg || 'carregando…';
+  $('sdot').className = 'status-dot ld';
+  $('method-badge').textContent = '…';
+  $('method-badge').className = '';
+  $('ms-badge').textContent = '';
+}
+
+function setResult(html, method, ms, screenshotB64) {
+  $('viewer-loading').style.display = 'none';
+
+  if (screenshotB64) {
+    $('screenshot-wrap').style.display = 'flex';
+    $('screenshot-img').src = 'data:image/png;base64,' + screenshotB64;
+  } else {
+    const frame = $('viewer-frame');
+    frame.style.display = 'block';
+    frame.srcdoc = html;
+  }
+
+  $('sdot').className = 'status-dot ok';
+  $('method-badge').textContent = method;
+  $('method-badge').className   = method === 'playwright' ? 'pw' : 'cors';
+  $('ms-badge').textContent     = ms + 'ms';
+
+  // update chain visuals
+  resetChain();
+  setChainState(method === 'playwright' ? 'playwright' : method, 'ok');
+}
+
+function setError(msg) {
+  $('viewer-loading').style.display = 'none';
+  $('viewer-empty').style.display   = 'flex';
+  $('viewer-empty').innerHTML = `
+    <div class="empty-icon" style="color:var(--rd);opacity:.4">✕</div>
+    <span style="color:var(--rd)">${msg}</span>
+    <span style="font-size:.52rem;margin-top:4px;color:var(--dm)">verifique se o servidor está rodando</span>`;
+  $('sdot').className = 'status-dot er';
+  $('method-badge').textContent = 'erro';
+  $('method-badge').className = '';
+}
+
+async function browse() {
+  let url = $('url-in').value.trim();
+  if (!url) return;
+  if (!url.startsWith('http')) url = 'https://' + url;
+  $('url-in').value = url;
+  $('sb-url').textContent = url;
+
+  resetChain();
+
+  const screenshot = browseMode === 'screenshot';
+  setLoading(browseMode === 'playwright' ? 'abrindo com playwright…'
+           : browseMode === 'cors'       ? 'tentando CORS proxies…'
+           : screenshot                  ? 'tirando screenshot…'
+           : 'conectando…');
+
+  // show active chain item
+  if (browseMode === 'playwright' || browseMode === 'auto' || browseMode === 'screenshot') {
+    setChainState('playwright', 'active');
+  } else {
+    setChainState('corsproxy', 'active');
+  }
+
+  try {
+    const body = { url, screenshot };
+    // if forced mode, hint to server (server tries playwright first always,
+    // but if cors mode we can skip playwright by passing a flag)
+    if (browseMode === 'cors') body.skipPlaywright = true;
+
+    const r = await fetch('/api/browse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      // mark failed chain items
+      if (e.playwrightError) setChainState('playwright', 'fail');
+      ['corsproxy','allorigins','codetabs'].forEach(id => setChainState(id, 'fail'));
+      setError(e.error || `HTTP ${r.status}`);
+      return;
+    }
+
+    const data = await r.json();
+
+    // update chain: mark used method as ok, previous as fail
+    const methods = ['playwright','corsproxy','allorigins','codetabs'];
+    const idx = data.method === 'playwright' ? 0
+              : data.method === 'corsproxy.io' ? 1
+              : data.method === 'allorigins'   ? 2
+              : data.method === 'codetabs'     ? 3 : -1;
+    methods.forEach((m, i) => {
+      if (i < idx)  setChainState(m, 'fail');
+      if (i === idx) setChainState(m, 'ok');
+    });
+
+    setResult(data.html, data.method, data.ms, data.screenshot);
+
+    // reset mode after use
+    browseMode = 'auto';
+
+  } catch(e) {
+    setError('servidor offline — inicie com: npm start');
+  }
+}
+
+// allow Ctrl+L to focus URL bar
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+    e.preventDefault(); $('url-in').select();
+  }
+});
+</script>
+</body>
+</html>

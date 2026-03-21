@@ -1,0 +1,16 @@
+{
+  "name": "sistema",
+  "version": "1.0.0",
+  "description": "Sistema — AI interface with streaming, editor and Python backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "install:browser": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "playwright": "^1.42.0"
+  }
+}

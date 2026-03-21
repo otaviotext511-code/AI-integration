@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema — Main</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ╔══════════════════════════════════════════════════════════╗
+     ║  TOPBAR                                                  ║
+     ╚══════════════════════════════════════════════════════════╝ -->
+<div id="topbar">
+
+  <!-- Row 1: tools -->
+  <div class="tb-row">
+    <span class="tb-brand"><span>§</span> Sistema</span>
+    <div class="tb-sep"></div>
+    <span class="file-search-icon">🔍</span>
+    <input class="tb-input" id="search-input" placeholder="buscar arquivos…" oninput="SYS.searchFiles(this.value)">
+    <div class="tb-sep"></div>
+    <button class="tb-btn" onclick="SYS.addFileFromDisk()" title="Adicionar arquivos do disco">📂 files added</button>
+    <button class="tb-btn" onclick="SYS.toggleSearch()"    title="Focar busca">🔍 search files</button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn exec-btn" onclick="SYS.execFile()"   title="Executar JS no engine">▷ execute file</button>
+    <button class="tb-btn run-btn"  onclick="SYS.runPreview()" title="Abrir HTML em nova aba">⚡ run file</button>
+    <button class="tb-btn py-btn"   onclick="SYS.runPython()"  title="Enviar código Python ao backend">🐍 run py</button>
+    <div class="tb-spacer"></div>
+    <span class="tb-brand" style="font-size:.5rem;letter-spacing:.04em">server</span>
+    <div class="tb-dot" id="server-dot" title="Status do servidor"></div>
+    <span class="tb-brand" style="font-size:.5rem;letter-spacing:.04em;margin-left:5px">api</span>
+    <div class="tb-dot" id="api-dot" title="Status da API key"></div>
+  </div>
+
+  <!-- Row 2: panel tabs + mode windows -->
+  <div class="tb-row">
+    <button class="tb-btn active" id="tab-ai"     onclick="SYS.setPanel('ai')">◈ painel AI</button>
+    <button class="tb-btn"        id="tab-edit"   onclick="SYS.setPanel('edit')">⧉ view &amp; edit</button>
+    <button class="tb-btn"        id="tab-engine" onclick="SYS.toggleEngine()">⚙ engine execute</button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" id="btn-mode-win" onclick="SYS.toggleModeWindows()" title="Ativar Mode Windows">⊞ mode windows</button>
+    <div class="tb-spacer"></div>
+    <span class="tb-brand" id="tb-file-lbl" style="font-size:.5rem;color:rgba(255,255,255,.12)">—</span>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗
+     ║  WORKSPACE  (normal mode — 3 columns)                   ║
+     ╚══════════════════════════════════════════════════════════╝ -->
+<div id="workspace">
+
+  <!-- ── FILES PANEL ── -->
+  <div class="panel" id="panel-files">
+    <div class="panel-hd">
+      <span class="panel-lbl">arquivos</span>
+      <button class="panel-action" onclick="SYS.addFileFromDisk()" title="Adicionar">+</button>
+      <button class="panel-action" onclick="SYS.clearFiles()"      title="Limpar tudo">✕</button>
+    </div>
+    <div class="file-search-bar">
+      <span class="file-search-icon">🔍</span>
+      <input class="file-search-in" id="file-search-in" placeholder="filtrar…" oninput="SYS.searchFiles(this.value)">
+    </div>
+    <div class="file-list" id="file-list">
+      <div class="empty-state" id="files-empty">
+        <div class="empty-icon">⧉</div>
+        <span>nenhum arquivo</span>
+        <button class="btn-small" onclick="SYS.addFileFromDisk()">adicionar arquivo</button>
+      </div>
+    </div>
+    <div class="file-drop" id="file-drop"
+         onclick="SYS.addFileFromDisk()"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="SYS.handleDrop(event)">
+      ↓ arraste arquivos aqui<br>ou clique para escolher
+    </div>
+  </div>
+
+  <!-- ── EDIT PANEL ── -->
+  <div class="panel" id="panel-edit" style="display:flex;flex-direction:column;">
+    <div class="panel-hd">
+      <span class="panel-lbl">view &amp; edit</span>
+      <button class="panel-action" onclick="SYS.runPreview()"    title="Pré-visualizar HTML">▷</button>
+      <button class="panel-action" onclick="SYS.saveCurrentFile()" title="Salvar (Ctrl+S)">↓</button>
+    </div>
+    <div class="file-tabs-bar" id="file-tabs-bar">
+      <div class="empty-state" style="flex:none;flex-direction:row;padding:0;gap:6px;font-size:.55rem;color:var(--dm);">sem arquivos abertos</div>
+      <button class="tab-add" onclick="SYS.newFile()" title="Novo arquivo">+</button>
+    </div>
+    <div class="editor-wrap">
+      <div class="line-nums" id="line-nums">1</div>
+      <textarea id="editor" spellcheck="false"
+        placeholder="// escreva código aqui…&#10;// ou abra um arquivo →"
+        oninput="SYS.onEditorInput()"
+        onscroll="SYS.syncScroll()"
+        onkeydown="SYS.onEditorKey(event)"
+        onkeyup="SYS.updateEditorStatus()"
+        onclick="SYS.updateEditorStatus()"></textarea>
+    </div>
+    <div class="editor-status">
+      <span>char <span id="st-char">0</span></span>
+      <div class="st-sep"></div>
+      <span>ln <span id="st-ln">1</span></span>
+      <span>col <span id="st-col">1</span></span>
+      <div class="st-sep"></div>
+      <span class="st-lang" id="st-lang" onclick="SYS.cycleLang()" title="Clique para trocar linguagem">txt</span>
+      <div class="tb-spacer"></div>
+      <span id="st-saved" style="color:var(--gr);display:none;font-size:.52rem">✓ salvo</span>
+    </div>
+  </div>
+
+  <!-- ── AI PANEL ── -->
+  <div class="panel" id="panel-ai">
+    <div class="panel-hd">
+      <span class="panel-lbl">painel AI</span>
+      <button class="panel-action" onclick="SYS.injectEditorContext()" title="Injetar código do editor">⧉</button>
+      <button class="panel-action beta-toggle" id="btn-beta" onclick="SYS.toggleBeta()" title="Beta Py Mode — AI planeja + executa Python antes de responder">β</button>
+      <button class="panel-action" onclick="SYS.clearAI()"             title="Limpar chat">✕</button>
+    </div>
+
+    <!-- API key row -->
+    <div class="ai-key-bar">
+      <span class="ai-key-lbl">KEY</span>
+      <input class="ai-key-in" id="ai-key" type="password"
+        placeholder="sk-or-… (openrouter)  ou use .env no servidor"
+        autocomplete="off"
+        onchange="SYS.setApiKey(this.value)">
+      <div class="ai-dot" id="ai-dot-ind" title="Status da chave"></div>
+    </div>
+
+    <!-- Model selector + add model -->
+    <div class="ai-model-bar">
+      <select class="ai-model-sel" id="ai-model"></select>
+      <span class="ai-ctx-badge" id="ai-ctx-badge">0 tkn</span>
+      <button class="ai-icon-btn" onclick="SYS.toggleAddModel()" title="Adicionar modelo OpenRouter">＋</button>
+    </div>
+
+    <!-- Add model row (hidden by default) -->
+    <div class="ai-addmodel-row" id="ai-addmodel-row" style="display:none">
+      <input class="ai-addmodel-in" id="ai-addmodel-in"
+        placeholder="ex: mistralai/mistral-7b-instruct"
+        onkeydown="if(event.key==='Enter')SYS.addModel()">
+      <button class="ai-icon-btn ok" onclick="SYS.addModel()" title="Confirmar">✓</button>
+      <button class="ai-icon-btn"    onclick="SYS.toggleAddModel()" title="Cancelar">✕</button>
+    </div>
+
+    <!-- ★ AI Recomenda preset -->
+    <div class="ai-preset-bar">
+      <button class="preset-btn" id="btn-preset" onclick="SYS.applyPreset()" title="Aplicar modelo + instrução com melhor custo-benefício">
+        ★ AI recomenda
+      </button>
+      <span class="preset-hint" id="preset-hint">gemini-2.0-flash · objetivo</span>
+    </div>
+
+    <!-- Instrução da sessão (system prompt) -->
+    <div class="ai-sysbar">
+      <div class="ai-sysbar-hd" onclick="SYS.toggleSysPrompt()">
+        <span class="ai-sysbar-lbl">instrução da sessão</span>
+        <span class="ai-sysbar-arr" id="sysbar-arr">▸</span>
+      </div>
+      <div class="ai-sysbar-body" id="sysbar-body" style="display:none">
+        <textarea class="ai-sys-ta" id="ai-sys-prompt"
+          placeholder="ex: responda sempre em português, seja direto, use markdown…"
+          oninput="SYS.onSysPromptInput()"></textarea>
+        <div class="ai-sys-footer">
+          <span id="sys-char-count" style="font-size:.5rem;color:var(--dm)">0 chars</span>
+          <button class="ai-sys-clear" onclick="SYS.clearSysPrompt()">limpar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="ai-msgs" id="ai-msgs">
+      <div class="empty-state" id="ai-empty">
+        <div class="empty-icon">◈</div>
+        <span>configure a API key<br>ou defina OPENROUTER_KEY no .env</span>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="ai-input-wrap">
+      <textarea class="ai-textarea" id="ai-input"
+        placeholder="mensagem…  Enter = enviar  /  Shift+Enter = quebra"
+        onkeydown="SYS.aiKeydown(event)"
+        oninput="SYS.aiResize()"></textarea>
+      <button class="ai-send" id="ai-send-btn" onclick="SYS.sendAI()" title="Enviar">→</button>
+    </div>
+  </div>
+
+</div><!-- /workspace -->
+
+<!-- ╔══════════════════════════════════════════════════════════╗
+     ║  ENGINE CONSOLE (slides in from top)                    ║
+     ╚══════════════════════════════════════════════════════════╝ -->
+<div id="engine-overlay">
+  <div class="eng-hd">
+    <span class="eng-lbl">engine execute</span>
+    <button class="panel-action" onclick="SYS.execFile()"  title="Executar">▷ exec</button>
+    <button class="panel-action" onclick="SYS.runPython()" title="Rodar Python" style="color:var(--yw)">🐍 py</button>
+    <button class="panel-action" onclick="SYS.clearEngine()" title="Limpar">✕</button>
+    <button class="panel-action" onclick="SYS.toggleEngine()" title="Fechar">↑</button>
+  </div>
+  <div class="eng-log" id="eng-log">
+    <div class="empty-state" style="padding:.5rem">
+      <span style="font-size:.58rem;color:var(--dm)">// saída de execução aparece aqui</span>
+    </div>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗
+     ║  MODE WINDOWS — desktop + winbar                        ║
+     ╚══════════════════════════════════════════════════════════╝ -->
+<div id="desk"></div>
+
+<div id="winbar">
+  <button class="wbb ac"       title="＋ nova janela"  onclick="WM.spawn()">＋</button>
+  <button class="wbb"          title="§ abrir arquivo" onclick="WM.openFilePicker()">§</button>
+  <button class="wbb"          title="⊞ grade 2×2"     onclick="WM.gridLayout(2)">⊞</button>
+  <button class="wbb"          title="▥ horizontal"    onclick="WM.tileH()">▥</button>
+  <button class="wbb"          title="❐ cascata"       onclick="WM.cascade()">❐</button>
+  <div class="wb-sep"></div>
+  <button class="wbb"          title="− remover última" onclick="WM.removeLast()">−</button>
+  <button class="wbb wbb-reset" title="₢ reset"         onclick="SYS.confirmReset()">₢</button>
+  <div class="wb-sep"></div>
+  <div class="wb-chips" id="wb-chips"></div>
+</div>
+
+<div id="guide"></div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗
+     ║  CONFIRM MODAL                                          ║
+     ╚══════════════════════════════════════════════════════════╝ -->
+<div id="confirm-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title">⚠ confirmar</div>
+    <div class="modal-body"  id="modal-body">Esta ação é irreversível. Continuar?</div>
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="SYS.closeModal()">cancelar</button>
+      <button class="modal-btn danger" id="modal-confirm-btn">confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗
+     ║  BETA PY POPUP  (temp overlay, top-right area)          ║
+     ╚══════════════════════════════════════════════════════════╝ -->
+<div id="py-popup" style="display:none">
+  <div class="py-popup-hd">
+    <span class="py-popup-icon">🐍</span>
+    <span class="py-popup-title" id="py-popup-title">beta · pensando…</span>
+    <div class="py-popup-dots"><span></span><span></span><span></span></div>
+  </div>
+  <div class="py-popup-body">
+    <div class="py-popup-section" id="py-popup-intent" style="display:none">
+      <span class="py-popup-lbl">intenção</span>
+      <span class="py-popup-val" id="py-intent-val">—</span>
+    </div>
+    <div class="py-popup-section" id="py-popup-steps" style="display:none">
+      <span class="py-popup-lbl">etapas</span>
+      <div class="py-popup-steps-list" id="py-steps-list"></div>
+    </div>
+    <div class="py-popup-section" id="py-popup-code-sec" style="display:none">
+      <span class="py-popup-lbl">python</span>
+      <pre class="py-popup-code" id="py-popup-code"></pre>
+    </div>
+    <div class="py-popup-section" id="py-popup-result-sec" style="display:none">
+      <span class="py-popup-lbl">resultado</span>
+      <pre class="py-popup-result" id="py-popup-result"></pre>
+    </div>
+  </div>
+  <div class="py-popup-footer">
+    <div class="py-popup-progress" id="py-popup-progress"></div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════════════════════╗
+     ║  SISTEMA CONSOLE  (Ctrl+Ç / Ctrl+` to toggle)          ║
+     ╚══════════════════════════════════════════════════════════╝ -->
+<div id="sys-console" class="syscon" style="display:none">
+  <!-- drag handle / header -->
+  <div class="syscon-hd" id="syscon-hd">
+    <div class="syscon-grip"><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span></div>
+    <span class="syscon-title">
+      <span class="syscon-title-icon">⬛</span> console
+      <span class="syscon-badge" id="syscon-badge">server</span>
+    </span>
+    <div class="syscon-hd-btns">
+      <button class="syscon-hd-btn" onclick="CONSOLE.clear()" title="Limpar">✕</button>
+      <button class="syscon-hd-btn syscon-close" onclick="CONSOLE.toggle()" title="Fechar (Ctrl+Ç)">⊠</button>
+    </div>
+    <!-- resize corner -->
+    <div class="syscon-resize" id="syscon-resize"></div>
+  </div>
+  <!-- output area -->
+  <div class="syscon-out" id="syscon-out">
+    <div class="syscon-welcome">
+      <span style="color:var(--gr)">Sistema Console</span> <span style="color:var(--dm)">v0.1</span><br>
+      <span style="color:var(--dm)">Ctrl+Ç ou Ctrl+` para abrir/fechar</span><br>
+      <span style="color:var(--dm)">comandos: help, clear, status, ls, py &lt;code&gt;, node &lt;code&gt;</span>
+    </div>
+  </div>
+  <!-- input row -->
+  <div class="syscon-in-row">
+    <span class="syscon-prompt">›</span>
+    <input class="syscon-input" id="syscon-input"
+      placeholder="comando…"
+      autocomplete="off" autocorrect="off" spellcheck="false"
+      onkeydown="CONSOLE.onKey(event)">
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
