@@ -4,35 +4,21 @@
 // ═══════════════════════════════════════════════════════════════
 'use strict';
 
-/* ── PROXY (Mode Windows URL loading only) ─────────────────── */
-window.PipProxy = (() => {
-  const P = [
-    { name:'corsproxy.io', b: u=>`https://corsproxy.io/?${encodeURIComponent(u)}` },
-    { name:'allorigins',   b: u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
-  ];
-  async function fetchHTML(url) {
-    for (const p of P) {
-      try {
-        const r = await fetch(p.b(url), { signal: AbortSignal.timeout(9000) });
-        if (!r.ok) throw new Error(r.status);
-        const h = await r.text();
-        if (h.trim().length < 50) throw new Error('vazio');
-        return { html:h, proxy:p.name };
-      } catch(e) { console.warn('[PipProxy]', p.name, e.message); }
-    }
-    throw new Error('Todos os proxies falharam.');
+/* ── PROXY ────────────────────────────────────────────────────
+   PipProxy é carregado por pip-proxy.js (antes deste script em
+   index.html). Aqui apenas registramos o listener que recebe
+   o conteúdo de páginas enviado pelo proxy.html via postMessage.
+   Isso permite que a IA leia o conteúdo de qualquer URL aberta
+   no browser proxy sem depender de /api/browse.
+   ─────────────────────────────────────────────────────────── */
+window.addEventListener('message', e => {
+  // proxy.html manda { type:'proxy-content', url, text }
+  // quando o usuário clica "enviar para IA"
+  if (!e.data || e.data.type !== 'proxy-content') return;
+  if (typeof window.SYS !== 'undefined' && window.SYS.injectBrowseContext) {
+    window.SYS.injectBrowseContext(e.data.url, e.data.text);
   }
-  function rw(html, base) {
-    if (/<base\s/i.test(html)) return html.replace(/<base[^>]*>/i, `<base href="${base}">`);
-    return html.replace(/(<head[^>]*>)/i, `$1<base href="${base}">`);
-  }
-  async function load(url, el, cbs={}) {
-    const {onStart,onSuccess,onError}=cbs; if (onStart) onStart();
-    try { const {html,proxy}=await fetchHTML(url); el.removeAttribute('src'); el.srcdoc=rw(html,url); el.style.display='block'; if (onSuccess) onSuccess(proxy); }
-    catch(e) { if (onError) onError(e.message); }
-  }
-  return { load };
-})();
+});
 
 /* ── SERVER API wrappers ────────────────────────────────────── */
 // returns headers including x-api-key if user typed one in the UI
@@ -251,6 +237,18 @@ window.SYS = (() => {
     const em=JSON.parse(sessionStorage.getItem('extra_models')||'[]');
     renderModelSelect([...DEFAULT_MODELS,...em]);
     checkServer(); updateFileList(); updateLineNums(); updateEditorStatus();
+
+    // Drag & drop visual feedback
+    const dropZone = document.getElementById('file-drop');
+    if (dropZone) {
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+      });
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+      });
+    }
   }
 
   // SERVER STATUS
@@ -284,8 +282,61 @@ window.SYS = (() => {
 
   // FILES
   function addFileFromDisk(){const inp=document.createElement('input');inp.type='file';inp.multiple=true;inp.accept='.html,.htm,.js,.ts,.css,.json,.md,.mdx,.txt,.svg,.py';inp.onchange=e=>Array.from(e.target.files).forEach(loadFile);inp.click();}
-  function handleDrop(e){e.preventDefault();document.getElementById('file-drop').classList.remove('drag-over');Array.from(e.dataTransfer.files).forEach(loadFile);}
-  function loadFile(f){const r=new FileReader();r.onload=ev=>{const id=++fileIdSq,ext=f.name.split('.').pop().toLowerCase();const tm={js:'js',ts:'js',py:'py',html:'html',htm:'html',css:'css',json:'json',md:'md',mdx:'md',svg:'html',txt:'txt'};files.push({id,name:f.name,content:ev.target.result,type:tm[ext]||'txt',size:f.size});updateFileList();openTab(id);};r.readAsText(f);}
+  
+  // Internal file loader (does not touch UI, returns promise with id)
+  function _loadFileInternal(f) {
+    return new Promise((resolve) => {
+      const r = new FileReader();
+      r.onload = ev => {
+        const id = ++fileIdSq;
+        const ext = f.name.split('.').pop().toLowerCase();
+        const tm = {
+          js: 'js', ts: 'js', py: 'py',
+          html: 'html', htm: 'html', css: 'css',
+          json: 'json', md: 'md', mdx: 'md',
+          svg: 'html', txt: 'txt'
+        };
+        files.push({
+          id,
+          name: f.name,
+          content: ev.target.result,
+          type: tm[ext] || 'txt',
+          size: f.size
+        });
+        resolve(id);
+      };
+      r.readAsText(f);
+    });
+  }
+
+  // Public single file loader
+  async function loadFile(f) {
+    const id = await _loadFileInternal(f);
+    openTab(id);
+    updateFileList();
+  }
+
+  // Handle drop (multiple files)
+  async function handleDrop(e) {
+    e.preventDefault();
+    const dropArea = document.getElementById('file-drop');
+    if (dropArea) dropArea.classList.remove('drag-over');
+
+    const filesToAdd = Array.from(e.dataTransfer.files);
+    if (!filesToAdd.length) return;
+
+    const newIds = [];
+    for (const f of filesToAdd) {
+      const id = await _loadFileInternal(f);
+      if (id) newIds.push(id);
+    }
+
+    if (newIds.length) {
+      openTab(newIds[newIds.length - 1]); // open last file
+      updateFileList();                   // single UI refresh
+    }
+  }
+
   function newFile(){const id=++fileIdSq;files.push({id,name:`arquivo-${id}.txt`,content:'',type:'txt',size:0});updateFileList();openTab(id);}
   function openTab(fid){
     if(!tabs.includes(fid))tabs.push(fid);activeTab=fid;
@@ -314,7 +365,7 @@ window.SYS = (() => {
   }
   function searchFiles(q){document.getElementById('file-search-in').value=q;document.getElementById('search-input').value=q;updateFileList(q);}
   function toggleSearch(){document.getElementById('search-input').focus();}
-  function clearFiles(){if(files.length&&!confirm('Remover todos os arquivos?'))return;files=[];tabs=[];activeFile=null;activeTab=null;updateFileList();renderTabs();document.getElementById('editor').value='';document.getElementById('tb-file-lbl').textContent='—';updateLineNums();updateEditorStatus();}
+  function clearFiles(){if(files.length&&!confirm('Remover todos os arquivos?'))return;files=[];tabs=[];activeFile=null;activeTab=null;renderTabs();document.getElementById('editor').value='';document.getElementById('tb-file-lbl').textContent='—';updateLineNums();updateEditorStatus();}
   function saveCurrentFile(){if(!activeFile)return;activeFile.content=document.getElementById('editor').value;const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([activeFile.content],{type:'text/plain'})),download:activeFile.name});a.click();const si=document.getElementById('st-saved');si.style.display='';setTimeout(()=>si.style.display='none',2000);}
 
   // EDITOR
@@ -647,6 +698,48 @@ window.SYS = (() => {
   function fileIcon(t){return{js:'⟨/⟩',html:'⊛',css:'⊙',json:'{}',md:'#',txt:'≡',py:'🐍'}[t]||'◈';}
   function fmtSize(b){return b<1024?b+'b':b<1048576?(b/1024).toFixed(1)+'k':(b/1048576).toFixed(1)+'M';}
 
+  // ─── BROWSE ─────────────────────────────────────────────────
+  // Abre o proxy.html numa nova janela com a URL desejada.
+  // Opcionalmente, também busca o conteúdo via PipProxy.fetchForAI()
+  // e injeta como contexto na próxima mensagem da IA.
+  let _browseWin = null;
+
+  function browse(url, fetchContext = false) {
+    if (!url) { url = prompt('URL para abrir no browser:'); if (!url) return; }
+    if (!url.startsWith('http')) url = 'https://' + url;
+
+    // Reutiliza a janela se já estiver aberta; senão abre nova
+    if (_browseWin && !_browseWin.closed) {
+      _browseWin.postMessage({ type: 'load-url', url, useProxy: true }, '*');
+      _browseWin.focus();
+    } else {
+      _browseWin = window.open('proxy.html?url=' + encodeURIComponent(url), 'sistema-browser',
+        'width=1024,height=720,menubar=no,toolbar=no,location=no,status=no');
+    }
+
+    // Se o caller pediu contexto, busca o HTML limpo e injeta no AI
+    if (fetchContext && window.PipProxy) {
+      addAIMsg('ai', `🌐 Buscando conteúdo de **${url}** para análise…`);
+      PipProxy.fetchForAI(url)
+        .then(text => injectBrowseContext(url, text))
+        .catch(err => addAIMsg('ai', `⚠️ Não foi possível buscar **${url}**: ${err}`));
+    }
+  }
+
+  // Chamado pelo postMessage do proxy.html quando o usuário clica
+  // "enviar para IA", ou pelo browse() com fetchContext=true.
+  // Injeta o conteúdo como uma mensagem de sistema no histórico da IA.
+  function injectBrowseContext(url, text) {
+    if (!text) return;
+    const snippet = text.slice(0, 6000); // respeita o orçamento de tokens
+    const contextMsg = `[CONTEXTO DE NAVEGAÇÃO]\nURL: ${url}\n\n${snippet}`;
+    // insere no histórico como mensagem de usuário (invisível no chat)
+    aiHistory.push({ role: 'user', content: contextMsg });
+    // feedback visual no chat
+    addAIMsg('ai', `✓ Conteúdo de **${url}** adicionado ao contexto (${text.length} chars). Agora posso responder perguntas sobre essa página.`);
+    updateCtxBadge();
+  }
+
   // PUBLIC API
   return {
     init, checkServer,
@@ -660,7 +753,8 @@ window.SYS = (() => {
     aiKeydown, aiResize, sendAI,
     toggleBeta, updateCtxBadge,
     searchFiles, toggleSearch,
-    confirmReset, closeModal
+    confirmReset, closeModal,
+    browse, injectBrowseContext   // ← integração proxy ↔ IA
   };
 })();
 

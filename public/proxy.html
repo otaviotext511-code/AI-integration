@@ -2,32 +2,34 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Sistema · Proxy</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema · Browser</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- pip-proxy.js é o único módulo necessário — sem /api/browse, sem backend -->
+<script src="pip-proxy.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg:  #080808; --bar: rgba(8,8,8,.98); --bd: rgba(255,255,255,.07);
-  --bhi: rgba(255,255,255,.14); --tx: rgba(255,255,255,.82); --dm: rgba(255,255,255,.3);
+  --bg:  #080810; --bar: rgba(8,8,16,.98); --bd: rgba(255,255,255,.07);
+  --bhi: rgba(255,255,255,.14); --tx: rgba(255,255,255,.82); --dm: rgba(255,255,255,.28);
   --ac: #e87c3a; --bl: #5b9cf6; --gr: #3fc87a; --rd: #f06060; --yw: #d4b86a;
   --mn: 'IBM Plex Mono', monospace;
 }
 html, body { width:100%; height:100%; overflow:hidden; background:var(--bg); font-family:var(--mn); color:var(--tx); }
 ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); }
-
-/* ── TOPBAR ── */
 #tb {
   height:42px; display:flex; align-items:center; gap:6px; padding:0 10px;
   background:var(--bar); border-bottom:1px solid var(--bd);
   position:fixed; top:0; left:0; right:0; z-index:999;
 }
-.tb-brand { font-size:.6rem; color:rgba(255,255,255,.2); letter-spacing:.1em; }
+.tb-brand { font-size:.58rem; color:rgba(255,255,255,.2); letter-spacing:.1em; flex-shrink:0; }
 .tb-brand span { color:var(--ac); }
-.tb-sep { width:1px; height:16px; background:var(--bd); margin:0 3px; }
+.tb-sep { width:1px; height:16px; background:var(--bd); margin:0 2px; flex-shrink:0; }
+#url-form { flex:1; display:flex; align-items:center; gap:6px; min-width:0; }
 #url-in {
   flex:1; background:rgba(255,255,255,.05); border:1px solid var(--bd);
-  border-radius:5px; padding:4px 10px; color:var(--tx); font-family:var(--mn);
-  font-size:.62rem; outline:none; transition:border-color .15s;
+  border-radius:5px; padding:5px 10px; color:var(--tx); font-family:var(--mn);
+  font-size:.63rem; outline:none; transition:border-color .15s;
 }
 #url-in:focus { border-color:rgba(232,124,58,.45); }
 #url-in::placeholder { color:rgba(255,255,255,.14); }
@@ -35,262 +37,299 @@ html, body { width:100%; height:100%; overflow:hidden; background:var(--bg); fon
   padding:4px 10px; border-radius:5px; border:1px solid var(--bd);
   background:rgba(255,255,255,.04); color:var(--dm); font-family:var(--mn);
   font-size:.58rem; cursor:pointer; transition:all .13s; white-space:nowrap;
-  display:flex; align-items:center; gap:5px;
+  display:flex; align-items:center; gap:4px; flex-shrink:0;
 }
 .tb-btn:hover { background:rgba(255,255,255,.09); color:var(--tx); border-color:var(--bhi); }
 .tb-btn.go  { border-color:rgba(232,124,58,.3); color:var(--ac); background:rgba(232,124,58,.08); }
-.tb-btn.go:hover { background:rgba(232,124,58,.18); }
-.tb-btn.pw  { border-color:rgba(91,156,246,.3); color:var(--bl); background:rgba(91,156,246,.08); }
-.tb-btn.pw:hover { background:rgba(91,156,246,.18); }
-.tb-btn.sc  { border-color:rgba(63,200,122,.3); color:var(--gr); background:rgba(63,200,122,.08); }
-.status-dot { width:5px; height:5px; border-radius:50%; background:var(--dm); flex-shrink:0; }
-.status-dot.ok { background:var(--gr); box-shadow:0 0 4px var(--gr); }
-.status-dot.ld { background:var(--bl); animation:blink .7s infinite; }
-.status-dot.er { background:var(--rd); }
-#method-badge {
-  font-size:.5rem; padding:1px 6px; border-radius:3px;
+.tb-btn.go:hover  { background:rgba(232,124,58,.18); }
+.tb-btn.px  { border-color:rgba(91,156,246,.3); color:var(--bl); background:rgba(91,156,246,.08); }
+.tb-btn.px:hover  { background:rgba(91,156,246,.18); }
+.tb-btn.ai  { border-color:rgba(63,200,122,.3); color:var(--gr); background:rgba(63,200,122,.08); }
+.tb-btn.ai:hover  { background:rgba(63,200,122,.18); }
+.tb-btn.ai.dis { border-color:var(--bd); color:var(--dm); background:rgba(255,255,255,.02); cursor:not-allowed; opacity:.5; }
+#status-dot { width:7px; height:7px; border-radius:50%; background:var(--dm); flex-shrink:0; transition:background .3s; }
+#status-dot.loading { background:var(--bl); animation:blink .7s infinite; }
+#status-dot.ok { background:var(--gr); box-shadow:0 0 5px var(--gr); }
+#status-dot.err { background:var(--rd); }
+#proxy-badge {
+  font-size:.5rem; padding:2px 7px; border-radius:3px; white-space:nowrap; display:none;
   background:rgba(255,255,255,.05); border:1px solid var(--bd); color:var(--dm);
-  white-space:nowrap;
 }
-#method-badge.pw  { background:rgba(91,156,246,.08); border-color:rgba(91,156,246,.25); color:var(--bl); }
-#method-badge.cors { background:rgba(212,184,106,.08); border-color:rgba(212,184,106,.25); color:var(--yw); }
-#ms-badge { font-size:.5rem; color:rgba(255,255,255,.2); }
-
-/* ── VIEWER ── */
-#viewer-wrap {
-  position:fixed; top:42px; left:0; right:0; bottom:42px;
-  display:flex; flex-direction:column;
+#proxy-badge.px  { display:inline; background:rgba(91,156,246,.08); border-color:rgba(91,156,246,.25); color:var(--bl); }
+#proxy-badge.di  { display:inline; background:rgba(212,184,106,.08); border-color:rgba(212,184,106,.25); color:var(--yw); }
+#ms-badge { font-size:.5rem; color:rgba(255,255,255,.18); white-space:nowrap; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.4} }
+#proxy-menu {
+  position:fixed; top:46px; right:10px; z-index:2000;
+  background:rgba(11,11,20,.99); border:1px solid var(--bhi);
+  border-radius:10px; box-shadow:0 14px 40px rgba(0,0,0,.7);
+  width:260px; padding:10px; display:none; flex-direction:column; gap:6px;
 }
-#viewer-frame {
-  flex:1; border:none; background:#fff; display:none;
+#proxy-menu.open { display:flex; }
+.pm-label { font-size:.52rem; color:var(--dm); letter-spacing:.07em; text-transform:uppercase; }
+.pm-list { display:flex; flex-direction:column; gap:3px; }
+.pm-item {
+  display:flex; align-items:center; gap:7px; padding:5px 8px;
+  border-radius:6px; border:1px solid transparent;
+  cursor:pointer; font-size:.58rem; color:var(--dm); transition:all .12s;
 }
-#viewer-empty {
-  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:10px; color:var(--dm); font-size:.62rem; text-align:center;
+.pm-item:hover { background:rgba(255,255,255,.06); border-color:var(--bd); color:var(--tx); }
+.pm-item.pinned { background:rgba(232,124,58,.08); border-color:rgba(232,124,58,.25); color:var(--ac); }
+.pm-item.ok .pm-dot { background:var(--gr); }
+.pm-item.fail .pm-dot { background:var(--rd); }
+.pm-dot { width:6px; height:6px; border-radius:50%; background:var(--dm); flex-shrink:0; }
+.pm-ms { margin-left:auto; font-size:.54rem; opacity:.5; }
+.pm-test { padding:4px 0; border-radius:6px; border:1px solid var(--bd); background:rgba(255,255,255,.03); color:var(--dm); font-family:var(--mn); font-size:.58rem; cursor:pointer; text-align:center; transition:all .12s; }
+.pm-test:hover { background:rgba(255,255,255,.09); color:var(--tx); }
+#viewer-wrap { position:fixed; top:42px; left:0; right:0; bottom:28px; }
+#viewer-frame { width:100%; height:100%; border:none; background:#fff; display:none; }
+#state-empty, #state-loading {
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:12px;
+  color:var(--dm); font-size:.62rem; text-align:center; padding:2rem;
 }
-.empty-icon { font-size:2rem; opacity:.1; }
-#viewer-loading {
-  flex:1; display:none; align-items:center; justify-content:center;
-  flex-direction:column; gap:14px; color:var(--dm); font-size:.6rem;
-}
-.spin {
-  width:28px; height:28px; border:2px solid var(--bd);
-  border-top-color:var(--ac); border-radius:50%; animation:spin .7s linear infinite;
-}
-#load-msg { color:var(--dm); font-size:.58rem; letter-spacing:.04em; }
-#screenshot-wrap { display:none; flex:1; overflow:auto; padding:1rem; background:#111; }
-#screenshot-img   { max-width:100%; border:1px solid var(--bd); border-radius:4px; }
-
-/* ── STATUSBAR ── */
-#sb {
-  height:42px; display:flex; align-items:center; gap:8px; padding:0 10px;
-  background:var(--bar); border-top:1px solid var(--bd);
-  position:fixed; bottom:0; left:0; right:0; font-size:.55rem; color:var(--dm);
-}
-#sb-url  { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.sb-sep  { width:1px; height:14px; background:var(--bd); }
-#proxy-chain {
-  display:flex; gap:4px; align-items:center;
-}
-.chain-item {
-  padding:1px 6px; border-radius:3px; font-size:.49rem;
-  border:1px solid var(--bd); background:rgba(255,255,255,.03); color:var(--dm);
-}
-.chain-item.active { border-color:rgba(91,156,246,.3); color:var(--bl); background:rgba(91,156,246,.06); }
-.chain-item.ok     { border-color:rgba(63,200,122,.3); color:var(--gr); background:rgba(63,200,122,.06); }
-.chain-item.fail   { border-color:rgba(240,96,96,.25); color:var(--rd); opacity:.5; }
-
-@keyframes spin   { to { transform:rotate(360deg) } }
-@keyframes blink  { 0%,100%{opacity:1} 50%{opacity:.3} }
+#state-loading { display:none; }
+.spin { width:26px; height:26px; border:2px solid var(--bd); border-top-color:var(--ac); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.ld-msg { font-size:.6rem; color:var(--dm); letter-spacing:.04em; }
+.ei { font-size:2rem; opacity:.1; margin-bottom:4px; }
+.e-hint { font-size:.56rem; opacity:.55; line-height:1.6; max-width:340px; }
+.qs-grid { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:8px; }
+.qs-chip { padding:4px 10px; border-radius:6px; border:1px solid var(--bd); background:rgba(255,255,255,.04); color:var(--dm); font-family:var(--mn); font-size:.58rem; cursor:pointer; transition:all .13s; }
+.qs-chip:hover { background:rgba(255,255,255,.09); color:var(--tx); border-color:var(--bhi); }
+#sb { position:fixed; bottom:0; left:0; right:0; height:28px; background:var(--bar); border-top:1px solid var(--bd); display:flex; align-items:center; gap:8px; padding:0 10px; font-size:.54rem; color:var(--dm); }
+#sb-url { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#sb-ai { margin-left:auto; flex-shrink:0; }
+#sb-ai.active { color:var(--gr); }
 </style>
 </head>
 <body>
-
-<!-- TOPBAR -->
 <div id="tb">
-  <span class="tb-brand"><span>§</span> proxy</span>
+  <span class="tb-brand"><span>§</span> browser</span>
   <div class="tb-sep"></div>
-  <input id="url-in" type="text" placeholder="https://example.com"
-    onkeydown="if(event.key==='Enter')browse()"
-    oninput="document.getElementById('url-in').style.borderColor=''">
-  <button class="tb-btn go" onclick="browse()">▷ abrir</button>
+  <div id="url-form">
+    <input id="url-in" type="text" placeholder="https://…  — Enter = direto · Ctrl+Enter = via proxy"
+           onkeydown="handleKey(event)">
+    <button class="tb-btn go" onclick="go(false)" title="Carregar direto (iframe)">→ direto</button>
+    <button class="tb-btn px" onclick="go(true)"  title="Carregar via proxy CORS (burla X-Frame-Options)">⛾ proxy</button>
+  </div>
   <div class="tb-sep"></div>
-  <button class="tb-btn pw"  onclick="browseMode='playwright';browse()" title="Forçar Playwright (JS completo)">⬛ playwright</button>
-  <button class="tb-btn sc"  onclick="browseMode='screenshot';browse()" title="Screenshot do site">⊡ screenshot</button>
-  <button class="tb-btn"     onclick="browseMode='cors';browse()"      title="Forçar CORS fallback">⛾ cors</button>
-  <div class="tb-sep"></div>
-  <div class="status-dot" id="sdot"></div>
-  <span id="method-badge">—</span>
+  <div id="status-dot" title="Status"></div>
+  <span id="proxy-badge"></span>
   <span id="ms-badge"></span>
+  <div class="tb-sep"></div>
+  <button class="tb-btn ai dis" id="btn-ai" onclick="sendToAI()" title="Enviar conteúdo desta página para a IA como contexto">◈ enviar para IA</button>
+  <button class="tb-btn" onclick="toggleProxyMenu()" title="Configurar proxy">⛾ proxies</button>
+  <button class="tb-btn" onclick="window.close()" title="Fechar">✕ fechar</button>
 </div>
 
-<!-- VIEWER -->
+<div id="proxy-menu">
+  <span class="pm-label">Proxy ativo (auto = tenta em cadeia)</span>
+  <div class="pm-list" id="pm-list"></div>
+  <button class="pm-test" onclick="testProxies()">⟳ testar todos</button>
+</div>
+
 <div id="viewer-wrap">
-  <div id="viewer-empty">
-    <div class="empty-icon">⧉</div>
-    <span>insira uma URL e clique ▷ abrir</span>
-    <span style="font-size:.52rem;margin-top:4px">playwright (JS completo) → cors fallback automático</span>
+  <div id="state-empty">
+    <div class="ei">⧉</div>
+    <span>sem conteúdo carregado</span>
+    <span class="e-hint">
+      Digite uma URL e pressione <strong>Enter</strong> (direto) ou <strong>Ctrl+Enter</strong> (proxy).<br>
+      Use proxy quando o site bloquear iframes normais (X-Frame-Options).
+    </span>
+    <div class="qs-grid" id="qs-grid"></div>
   </div>
-  <div id="viewer-loading">
+  <div id="state-loading">
     <div class="spin"></div>
-    <span id="load-msg">conectando…</span>
+    <span class="ld-msg" id="ld-msg">carregando…</span>
   </div>
-  <iframe id="viewer-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
-  <div id="screenshot-wrap">
-    <img id="screenshot-img" alt="screenshot">
-  </div>
+  <iframe id="viewer-frame"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
+    onload="onFrameLoad()">
+  </iframe>
 </div>
 
-<!-- STATUSBAR -->
 <div id="sb">
   <span id="sb-url">—</span>
-  <div class="sb-sep"></div>
-  <div id="proxy-chain">
-    <span class="chain-item" id="ci-playwright">playwright</span>
-    <span style="font-size:.5rem;opacity:.3">→</span>
-    <span class="chain-item" id="ci-corsproxy">corsproxy</span>
-    <span style="font-size:.5rem;opacity:.3">→</span>
-    <span class="chain-item" id="ci-allorigins">allorigins</span>
-    <span style="font-size:.5rem;opacity:.3">→</span>
-    <span class="chain-item" id="ci-codetabs">codetabs</span>
-  </div>
+  <span id="sb-ai"></span>
 </div>
 
 <script>
-let browseMode = 'auto'; // auto | playwright | cors | screenshot
+// ─── STATE ─────────────────────────────────────────────────────
+let currentURL = '';
+let t0 = 0;
 
-const $ = id => document.getElementById(id);
-const CHAIN_IDS = ['playwright','corsproxy','allorigins','codetabs'];
+// ─── QUICK SHORTCUTS ───────────────────────────────────────────
+const QUICK = [
+  { label: 'MDN',    url: 'https://developer.mozilla.org' },
+  { label: 'Wikipedia', url: 'https://wikipedia.org' },
+  { label: 'GitHub', url: 'https://github.com' },
+  { label: 'Can I use', url: 'https://caniuse.com' },
+  { label: 'npm',    url: 'https://npmjs.com' },
+  { label: 'Stack Overflow', url: 'https://stackoverflow.com' },
+];
+document.getElementById('qs-grid').innerHTML =
+  QUICK.map(q => `<div class="qs-chip" onclick="loadQuick('${q.url}')">${q.label}</div>`).join('');
 
-function resetChain() {
-  CHAIN_IDS.forEach(id => {
-    const el = $('ci-'+id);
-    if (el) { el.className = 'chain-item'; }
+// ─── PROXY MENU ────────────────────────────────────────────────
+let pinnedProxy = null;
+
+function buildProxyMenu() {
+  const list = document.getElementById('pm-list');
+  const items = [{ i: -1, name: 'auto-fallback (padrão)' }, ...PipProxy.getList()];
+  list.innerHTML = items.map(p => `
+    <div class="pm-item ${p.i === (pinnedProxy === null ? -1 : pinnedProxy) ? 'pinned' : ''}" id="pmi-${p.i}" onclick="pinProxy(${p.i})">
+      <div class="pm-dot"></div><span>${p.name}</span>
+      <span class="pm-ms" id="pmt-${p.i}"></span>
+    </div>`).join('');
+}
+buildProxyMenu();
+
+function toggleProxyMenu() { document.getElementById('proxy-menu').classList.toggle('open'); }
+document.addEventListener('click', e => {
+  if (!e.target.closest('#proxy-menu') && !e.target.closest('[title="Configurar proxy"]'))
+    document.getElementById('proxy-menu').classList.remove('open');
+});
+
+function pinProxy(idx) {
+  pinnedProxy = (idx === -1) ? null : idx;
+  PipProxy.pin(idx);
+  buildProxyMenu();
+  document.getElementById('proxy-menu').classList.remove('open');
+}
+
+async function testProxies() {
+  document.querySelectorAll('.pm-ms').forEach(el => el.textContent = '…');
+  const results = await PipProxy.testAll();
+  results.forEach(r => {
+    const ms = document.getElementById('pmt-' + r.i);
+    const item = document.getElementById('pmi-' + r.i);
+    if (ms) ms.textContent = r.ok ? `✓ ${r.ms}ms` : '✕';
+    if (item) { item.classList.toggle('ok', r.ok); item.classList.toggle('fail', !r.ok); }
   });
 }
-function setChainState(id, state) {
-  const el = $('ci-'+id); if (!el) return;
-  el.className = 'chain-item ' + state;
-}
 
+// ─── UI STATE ──────────────────────────────────────────────────
 function setLoading(msg) {
-  $('viewer-empty').style.display   = 'none';
-  $('viewer-frame').style.display   = 'none';
-  $('screenshot-wrap').style.display= 'none';
-  $('viewer-loading').style.display = 'flex';
-  $('load-msg').textContent = msg || 'carregando…';
-  $('sdot').className = 'status-dot ld';
-  $('method-badge').textContent = '…';
-  $('method-badge').className = '';
-  $('ms-badge').textContent = '';
+  document.getElementById('state-empty').style.display = 'none';
+  document.getElementById('state-loading').style.display = 'flex';
+  document.getElementById('ld-msg').textContent = msg || 'carregando…';
+  document.getElementById('viewer-frame').style.display = 'none';
+  setDot('loading');
 }
 
-function setResult(html, method, ms, screenshotB64) {
-  $('viewer-loading').style.display = 'none';
-
-  if (screenshotB64) {
-    $('screenshot-wrap').style.display = 'flex';
-    $('screenshot-img').src = 'data:image/png;base64,' + screenshotB64;
-  } else {
-    const frame = $('viewer-frame');
-    frame.style.display = 'block';
-    frame.srcdoc = html;
-  }
-
-  $('sdot').className = 'status-dot ok';
-  $('method-badge').textContent = method;
-  $('method-badge').className   = method === 'playwright' ? 'pw' : 'cors';
-  $('ms-badge').textContent     = ms + 'ms';
-
-  // update chain visuals
-  resetChain();
-  setChainState(method === 'playwright' ? 'playwright' : method, 'ok');
+function setLoaded(proxyName, ms) {
+  document.getElementById('state-loading').style.display = 'none';
+  document.getElementById('viewer-frame').style.display = 'block';
+  setDot('ok');
+  const badge = document.getElementById('proxy-badge');
+  if (proxyName) { badge.className = 'px'; badge.textContent = proxyName; }
+  else            { badge.className = 'di'; badge.textContent = 'direto'; }
+  document.getElementById('ms-badge').textContent = ms ? ms + 'ms' : '';
+  document.getElementById('btn-ai').classList.remove('dis');
+  document.getElementById('sb-url').textContent = currentURL;
 }
 
 function setError(msg) {
-  $('viewer-loading').style.display = 'none';
-  $('viewer-empty').style.display   = 'flex';
-  $('viewer-empty').innerHTML = `
-    <div class="empty-icon" style="color:var(--rd);opacity:.4">✕</div>
-    <span style="color:var(--rd)">${msg}</span>
-    <span style="font-size:.52rem;margin-top:4px;color:var(--dm)">verifique se o servidor está rodando</span>`;
-  $('sdot').className = 'status-dot er';
-  $('method-badge').textContent = 'erro';
-  $('method-badge').className = '';
+  document.getElementById('state-loading').style.display = 'none';
+  document.getElementById('state-empty').style.display = 'flex';
+  document.getElementById('state-empty').querySelector('.e-hint').innerHTML =
+    `<strong style="color:var(--rd)">✕ ${msg}</strong><br><br>Tente o modo <strong>⛾ proxy</strong> ou escolha outro proxy.`;
+  setDot('err');
 }
 
-async function browse() {
-  let url = $('url-in').value.trim();
+function setDot(state) { document.getElementById('status-dot').className = state; }
+
+// ─── LOAD ──────────────────────────────────────────────────────
+function normalize(raw) {
+  raw = (raw||'').trim();
+  if (!raw) return null;
+  if (!raw.startsWith('http')) raw = 'https://' + raw;
+  return raw;
+}
+
+function go(useProxy) {
+  const url = normalize(document.getElementById('url-in').value);
   if (!url) return;
-  if (!url.startsWith('http')) url = 'https://' + url;
-  $('url-in').value = url;
-  $('sb-url').textContent = url;
+  loadURL(url, useProxy);
+}
 
-  resetChain();
+function handleKey(e) { if (e.key === 'Enter') go(e.ctrlKey || e.metaKey); }
 
-  const screenshot = browseMode === 'screenshot';
-  setLoading(browseMode === 'playwright' ? 'abrindo com playwright…'
-           : browseMode === 'cors'       ? 'tentando CORS proxies…'
-           : screenshot                  ? 'tirando screenshot…'
-           : 'conectando…');
+function loadQuick(url) {
+  document.getElementById('url-in').value = url;
+  loadURL(url, true); // atalhos usam proxy por padrão
+}
 
-  // show active chain item
-  if (browseMode === 'playwright' || browseMode === 'auto' || browseMode === 'screenshot') {
-    setChainState('playwright', 'active');
+function loadURL(url, useProxy) {
+  currentURL = url;
+  t0 = Date.now();
+  document.getElementById('btn-ai').classList.add('dis');
+  document.getElementById('sb-ai').textContent = '';
+  const frame = document.getElementById('viewer-frame');
+
+  if (useProxy) {
+    setLoading('conectando ao proxy…');
+    PipProxy.load(url, frame, {
+      onProgress: msg => { document.getElementById('ld-msg').textContent = msg; },
+      onSuccess:  proxy => setLoaded(proxy, Date.now() - t0),
+      onError:    err   => setError(err),
+    });
   } else {
-    setChainState('corsproxy', 'active');
+    setLoading('carregando diretamente…');
+    frame.removeAttribute('srcdoc');
+    frame.src = url;
   }
+}
+
+function onFrameLoad() {
+  const frame = document.getElementById('viewer-frame');
+  if (!frame.src || frame.src === 'about:blank') return;
+  setLoaded(null, Date.now() - t0);
+}
+
+// ─── SEND TO AI ────────────────────────────────────────────────
+// Busca texto limpo via PipProxy.fetchForAI e manda postMessage para
+// a janela que abriu este browser (o index.html do Sistema).
+async function sendToAI() {
+  const btn = document.getElementById('btn-ai');
+  if (btn.classList.contains('dis') || !currentURL) return;
+  btn.textContent = '◈ buscando…'; btn.classList.add('dis');
+  document.getElementById('sb-ai').textContent = 'extraindo texto…';
 
   try {
-    const body = { url, screenshot };
-    // if forced mode, hint to server (server tries playwright first always,
-    // but if cors mode we can skip playwright by passing a flag)
-    if (browseMode === 'cors') body.skipPlaywright = true;
+    const text = await PipProxy.fetchForAI(currentURL);
+    const msg = { type: 'proxy-content', url: currentURL, text, ts: Date.now() };
+    // manda para quem abriu esta janela (window.open) ou para o pai (iframe)
+    if (window.opener) window.opener.postMessage(msg, '*');
+    if (window.parent !== window) window.parent.postMessage(msg, '*');
 
-    const r = await fetch('/api/browse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    if (!r.ok) {
-      const e = await r.json().catch(() => ({}));
-      // mark failed chain items
-      if (e.playwrightError) setChainState('playwright', 'fail');
-      ['corsproxy','allorigins','codetabs'].forEach(id => setChainState(id, 'fail'));
-      setError(e.error || `HTTP ${r.status}`);
-      return;
-    }
-
-    const data = await r.json();
-
-    // update chain: mark used method as ok, previous as fail
-    const methods = ['playwright','corsproxy','allorigins','codetabs'];
-    const idx = data.method === 'playwright' ? 0
-              : data.method === 'corsproxy.io' ? 1
-              : data.method === 'allorigins'   ? 2
-              : data.method === 'codetabs'     ? 3 : -1;
-    methods.forEach((m, i) => {
-      if (i < idx)  setChainState(m, 'fail');
-      if (i === idx) setChainState(m, 'ok');
-    });
-
-    setResult(data.html, data.method, data.ms, data.screenshot);
-
-    // reset mode after use
-    browseMode = 'auto';
-
+    btn.textContent = '◈ enviado ✓';
+    document.getElementById('sb-ai').textContent = `✓ ${text.length} chars enviados`;
+    document.getElementById('sb-ai').className = 'active';
+    setTimeout(() => { btn.textContent = '◈ enviar para IA'; btn.classList.remove('dis'); }, 3000);
   } catch(e) {
-    setError('servidor offline — inicie com: npm start');
+    btn.textContent = '◈ enviar para IA'; btn.classList.remove('dis');
+    document.getElementById('sb-ai').textContent = '✕ ' + e.message;
   }
 }
 
-// allow Ctrl+L to focus URL bar
-document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
-    e.preventDefault(); $('url-in').select();
-  }
+// ─── RECEBER URL VIA postMessage ────────────────────────────────
+// O Sistema pode mandar: { type: 'load-url', url: '...', useProxy: true }
+window.addEventListener('message', e => {
+  if (!e.data || e.data.type !== 'load-url' || !e.data.url) return;
+  document.getElementById('url-in').value = e.data.url;
+  loadURL(e.data.url, e.data.useProxy !== false);
 });
+
+// ─── RECEBER URL VIA QUERY STRING (?url=...) ────────────────────
+(function checkQueryURL() {
+  const p = new URLSearchParams(window.location.search);
+  const url = p.get('url');
+  if (!url) return;
+  document.getElementById('url-in').value = url;
+  loadURL(url, p.get('proxy') !== 'false');
+})();
 </script>
 </body>
 </html>

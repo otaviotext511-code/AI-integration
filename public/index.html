@@ -313,6 +313,9 @@
   </div>
 </div>
 
+<!-- pip-proxy.js deve vir ANTES de script.js: define window.PipProxy
+     que é usado tanto pelo WM (janelas flutuantes) quanto pelo SYS.browse() -->
+<script src="pip-proxy.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
