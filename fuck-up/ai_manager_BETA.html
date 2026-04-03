@@ -1,0 +1,1931 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Manager | Pro v2.3 - Com Continuidade</title>
+  <style>
+    /* ===== Mesmo CSS original, sem alterações ===== */
+    :root {
+      --bg-app: #0d1117;
+      --bg-sidebar: #161b22;
+      --bg-panel: #161b22;
+      --bg-input: #0d1117;
+      --border: #30363d;
+      --text-main: #c9d1d9;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #79c0ff;
+      --user-bubble: #1f6feb;
+      --ai-bubble: #21262d;
+      --success: #238636;
+      --success-bg: #2ea043;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --code-font: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-app);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; border: 2px solid var(--bg-app); }
+    ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+    .app { display: flex; height: 100vh; position: relative; }
+
+    .sidebar {
+      width: 260px;
+      min-width: 0;
+      max-width: 480px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      position: relative;
+      flex-shrink: 0;
+      overflow: hidden;
+      transition: width 0.2s ease;
+    }
+    .sidebar.collapsed {
+      width: 0 !important;
+      overflow: hidden;
+      border-right: none;
+    }
+
+    /* Resize handle sidebar */
+    .resize-handle-sidebar {
+      position: absolute;
+      right: -4px;
+      top: 0; bottom: 0;
+      width: 8px;
+      cursor: col-resize;
+      z-index: 30;
+      background: transparent;
+      transition: background 0.15s;
+    }
+    .resize-handle-sidebar:hover,
+    .resize-handle-sidebar.dragging {
+      background: rgba(88,166,255,0.25);
+    }
+
+    /* Toggle button sidebar */
+    .sidebar-toggle {
+      position: fixed;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 48px;
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border);
+      border-left: none;
+      border-radius: 0 6px 6px 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 9px;
+      z-index: 25;
+      transition: background 0.2s, color 0.2s, left 0.2s ease;
+    }
+    .sidebar-toggle:hover { background: var(--border); color: var(--text-main); }
+
+    .sidebar-header { padding: 1rem; border-bottom: 1px solid var(--border); }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1rem;
+      color: var(--text-main);
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .logo-icon {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--accent), #a371f7);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 16px; font-weight: bold;
+    }
+
+    .new-chat-btn {
+      width: 100%;
+      padding: 0.5rem;
+      background: rgba(56, 139, 253, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(56, 139, 253, 0.4);
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 13px;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .new-chat-btn:hover { background: rgba(56, 139, 253, 0.25); }
+
+    .key-bar {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; gap: 8px;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .key-in {
+      flex: 1;
+      padding: 0.4rem 0.6rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--text-main);
+      outline: none;
+      font-family: var(--code-font);
+    }
+    .key-in:focus { border-color: var(--accent); }
+
+    .key-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #30363d; align-self: center;
+      transition: all 0.3s;
+    }
+    .key-dot.ok { background: var(--success-bg); box-shadow: 0 0 8px rgba(46, 160, 67, 0.4); }
+    .key-dot.bad { background: #da3633; }
+
+    .conv-list { flex: 1; overflow-y: auto; padding: 0.5rem; }
+
+    .conv-item {
+      width: 100%;
+      text-align: left;
+      padding: 0.6rem 0.8rem;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      position: relative;
+      margin-bottom: 2px;
+      transition: all 0.2s;
+    }
+    .conv-item:hover { background: rgba(255,255,255,0.04); color: var(--text-main); }
+    .conv-item.active { background: rgba(255,255,255,0.08); color: var(--text-main); border-color: var(--border); }
+
+    .conv-del {
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+      width: 20px; height: 20px; border-radius: 4px;
+      background: transparent; border: none;
+      color: var(--text-muted); cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+      font-size: 12px;
+    }
+    .conv-item:hover .conv-del { display: flex; }
+    .conv-del:hover { background: rgba(218, 54, 51, 0.2); color: #da3633; }
+
+    .sidebar-footer {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px; color: var(--text-muted);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-app);
+      position: relative;
+    }
+
+    .chat-header {
+      padding: 0.8rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(13, 17, 23, 0.8);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+    }
+
+    .chat-title-group { display: flex; flex-direction: column; }
+    .chat-title { font-weight: 600; color: var(--text-main); font-size: 14px; }
+    .chat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .hdr-btn {
+      width: 30px; height: 30px;
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-left: 6px;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .hdr-btn:hover { background: var(--border); color: var(--text-main); }
+
+    .model-bar {
+      padding: 0.5rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; gap: 6px;
+      overflow-x: auto;
+      background: rgba(22, 27, 34, 0.5);
+    }
+    .model-bar::-webkit-scrollbar { height: 3px; }
+
+    .model-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      background: transparent;
+      border: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .model-badge:hover { border-color: var(--text-muted); }
+    .model-badge.active {
+      background: rgba(88, 166, 255, 0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .model-add {
+      border: 1px dashed var(--border);
+      background: transparent;
+      border-radius: 20px;
+      padding: 0.25rem 0.6rem;
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .model-add:hover { border-color: var(--text-muted); color: var(--text-main); }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .msg { display: flex; flex-direction: column; max-width: 90%; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.ai { align-self: flex-start; }
+
+    .msg-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .msg.user .msg-meta { display: none; }
+
+    .bubble {
+      padding: 0.8rem 1.2rem;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      word-break: break-word;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+
+    .msg.user .bubble {
+      background: var(--user-bubble);
+      color: white;
+      border-bottom-right-radius: 2px;
+    }
+
+    .msg.ai .bubble {
+      background: var(--ai-bubble);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 2px;
+      color: #e6edf3;
+    }
+
+    .bubble strong { color: var(--accent); font-weight: 600; }
+    .bubble code { 
+      background: rgba(110, 118, 129, 0.4); 
+      padding: 2px 5px; 
+      border-radius: 4px; 
+      font-family: var(--code-font); 
+      font-size: 0.9em; 
+      color: #ff7b72; 
+    }
+    .bubble pre { 
+      background: #0d1117; 
+      padding: 12px; 
+      border-radius: 6px; 
+      overflow-x: auto; 
+      margin: 8px 0; 
+      border: 1px solid var(--border); 
+    }
+    .bubble pre code { 
+      background: transparent; 
+      padding: 0; 
+      color: #c9d1d9; 
+      font-size: 12px;
+    }
+    .bubble a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+    .bubble a:hover { border-bottom-style: solid; }
+    .bubble ul, .bubble ol { padding-left: 1.2rem; margin: 0.5rem 0; }
+    .bubble li { margin-bottom: 4px; }
+    .bubble blockquote { border-left: 3px solid var(--accent); margin: 6px 0; padding: 4px 12px; color: var(--text-muted); background: rgba(88,166,255,0.05); border-radius: 0 4px 4px 0; }
+    .bubble p { margin-bottom: 0.8rem; }
+    .bubble p:last-child { margin-bottom: 0; }
+
+    .thinking-dots { display: flex; gap: 4px; padding: 4px 0; }
+    .td {
+      width: 5px; height: 5px; background: var(--text-muted);
+      border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;
+    }
+    .td:nth-child(1) { animation-delay: -0.32s; }
+    .td:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 3rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .empty-state svg { width: 48px; height: 48px; opacity: 0.3; stroke: var(--text-muted); }
+
+    .input-bar {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border);
+      background: var(--bg-sidebar);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .input-wrap {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      padding: 4px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.1); }
+
+    #msgIn {
+      flex: 1;
+      border: none;
+      padding: 0.6rem 0.8rem;
+      resize: none;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      background: transparent;
+      color: var(--text-main);
+      max-height: 150px;
+    }
+
+    .send-btn {
+      width: 38px; height: 38px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .send-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; background: #30363d; }
+
+    .task-panel {
+      width: 300px;
+      min-width: 0;
+      max-width: 520px;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+      transition: width 0.2s ease;
+    }
+    .task-panel:not(.collapsed) {
+      overflow-y: auto;
+    }
+    .task-panel.collapsed {
+      width: 0 !important;
+      overflow: hidden;
+      border-left: none;
+    }
+
+    /* Resize handle task panel */
+    .resize-handle-task {
+      position: absolute;
+      left: -4px;
+      top: 0; bottom: 0;
+      width: 8px;
+      cursor: col-resize;
+      z-index: 30;
+      background: transparent;
+      transition: background 0.15s;
+    }
+    .resize-handle-task:hover,
+    .resize-handle-task.dragging {
+      background: rgba(88,166,255,0.25);
+    }
+
+    /* Toggle button task panel */
+    .task-toggle {
+      position: fixed;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 48px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-right: none;
+      border-radius: 6px 0 0 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 9px;
+      z-index: 25;
+      transition: background 0.2s, color 0.2s, right 0.2s ease;
+    }
+    .task-toggle:hover { background: var(--border); color: var(--text-main); }
+
+    .task-header {
+      padding: 0.8rem 1rem;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-main);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .progress-container {
+      height: 2px;
+      background: #30363d;
+      width: 100%;
+    }
+    .progress-bar {
+      height: 100%;
+      background: var(--success-bg);
+      width: 0%;
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 8px rgba(46, 160, 67, 0.4);
+    }
+
+    .task-list { flex: 1; padding: 1rem; font-size: 13px; }
+    
+    .task-item {
+      margin-bottom: 0.6rem;
+      padding: 0.6rem;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid transparent;
+      border-radius: 6px;
+      cursor: default; 
+      transition: all 0.2s;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      opacity: 0.7;
+    }
+    .task-item.done {
+      opacity: 1;
+      background: rgba(46, 160, 67, 0.1);
+      border-color: rgba(46, 160, 67, 0.3);
+    }
+    
+    .task-check {
+      min-width: 16px; height: 16px;
+      border: 1px solid var(--text-muted);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: transparent;
+      transition: all 0.2s;
+      margin-top: 2px;
+      background: transparent;
+    }
+    
+    .task-item.done .task-check {
+      background: var(--success-bg);
+      border-color: var(--success-bg);
+      color: white;
+    }
+    .task-item.done div:last-child {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .task-summary {
+      padding: 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      background: rgba(255,255,255,0.02);
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .task-summary strong { color: var(--text-main); display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .summary-content { white-space: pre-wrap; }
+
+    .task-phase-label {
+      font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px;
+      padding: 0.3rem 0.6rem 0.2rem;
+      color: var(--text-muted);
+      display: flex; align-items: center; gap: 5px;
+      margin-bottom: 2px;
+    }
+    .task-phase-label .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .task-phase-label.phase-planned .dot { background: #58a6ff; }
+    .task-phase-label.phase-done    .dot { background: var(--success-bg); }
+    .task-phase-label.phase-missed  .dot { background: #da3633; }
+
+    .task-item.missed {
+      opacity: 0.5;
+      border-color: rgba(218, 54, 51, 0.2);
+      background: rgba(218, 54, 51, 0.04);
+    }
+    .task-item.missed .task-check {
+      border-color: #da3633;
+    }
+    .task-item.pending {
+      opacity: 0.65;
+    }
+    .task-coverage {
+      font-size: 11px; color: var(--text-muted);
+      padding: 0.4rem 1rem 0;
+      display: flex; gap: 10px; align-items: center;
+    }
+    .task-coverage span { display: flex; align-items: center; gap: 4px; }
+    .cov-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #21262d;
+      color: var(--text-main);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .modal {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    .modal.open { display: flex; }
+    .modal-content {
+      background: var(--bg-sidebar);
+      padding: 1.5rem;
+      border-radius: 8px;
+      width: 320px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .modal-content input {
+      width: 100%;
+      padding: 0.6rem;
+      margin: 1rem 0;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-main);
+      outline: none;
+      font-family: var(--code-font);
+      font-size: 12px;
+    }
+    .modal-content input:focus { border-color: var(--accent); }
+    .modal-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+    .btn-modal {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      border: none;
+      font-weight: 500;
+    }
+    .btn-cancel { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-cancel:hover { background: rgba(255,255,255,0.05); color: var(--text-main); }
+    .btn-confirm { background: var(--accent); color: white; }
+    .btn-confirm:hover { background: var(--accent-hover); }
+
+    @media (max-width: 900px) {
+      .task-panel.collapsed { display: none; }
+      .task-panel:not(.collapsed) { position: absolute; right: 0; height: 100%; z-index: 15; }
+      .sidebar:not(.collapsed) { position: absolute; height: 100%; z-index: 20; box-shadow: 4px 0 20px rgba(0,0,0,0.4); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Toggle sidebar -->
+  <button class="sidebar-toggle" id="sidebarToggle" title="Mostrar/ocultar sidebar">◀</button>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="resize-handle-sidebar" id="resizeSidebar"></div>
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">⚡</div>
+        <div class="logo-text">AI Manager</div>
+      </div>
+      <button class="new-chat-btn" id="newChatBtn">
+        <span>+</span> Novo Projeto
+      </button>
+    </div>
+    
+    <div class="key-bar">
+      <input type="password" class="key-in" id="apiKeyInput" placeholder="OpenRouter Key (sk-or-...)">
+      <div class="key-dot" id="keyDot"></div>
+    </div>
+
+    <div class="conv-list" id="convList"></div>
+
+    <div class="sidebar-footer">
+      <span id="keyHint">Sem chave API</span>
+      <button id="clearAllBtn" class="hdr-btn" style="width:24px;height:24px;font-size:12px;">🗑️</button>
+    </div>
+  </aside>
+
+  <main class="chat-area">
+    <div class="chat-header">
+      <div class="chat-title-group">
+        <div class="chat-title" id="chatTitle">Novo Projeto</div>
+        <div class="chat-sub" id="chatSub">Modelo: Selecionando...</div>
+      </div>
+      <div style="display:flex;align-items:center;">
+        <button class="hdr-btn" id="contextBtn" title="Injetar Instruções de Sistema">📋</button>
+        <button class="hdr-btn" id="exportBtn" title="Exportar Relatório">↓</button>
+        <button class="hdr-btn" id="clearMsgBtn" title="Limpar Chat">⟳</button>
+      </div>
+    </div>
+
+    <div class="model-bar" id="modelBar"></div>
+
+    <div class="messages" id="messages">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <div>
+          <strong>Pronto para começar?</strong><br>
+          Digite <code>/wiki [termo]</code> para pesquisa ou descreva seu objetivo.
+        </div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <div class="input-wrap">
+        <textarea id="msgIn" rows="1" placeholder="Descreva a tarefa, faça uma pergunta ou planeje..."></textarea>
+      </div>
+      <button class="send-btn" id="sendBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </div>
+  </main>
+
+  <!-- Toggle task panel -->
+  <button class="task-toggle" id="taskToggle" title="Mostrar/ocultar painel">▶</button>
+
+  <aside class="task-panel" id="taskPanel">
+    <div class="resize-handle-task" id="resizeTask"></div>
+    <div class="task-header">
+      <span>Plano de Ação (IA)</span>
+      <span id="taskCount" style="font-size:10px; opacity:0.7; font-weight:normal;">0/0</span>
+    </div>
+    <div class="progress-container">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="task-list" id="taskList">
+      <div style="color:var(--text-muted); text-align:center; margin-top:2rem; font-size:12px; line-height:1.4;">
+        Nenhuma tarefa gerada.<br>O plano será criado automaticamente ao enviar sua primeira mensagem.
+      </div>
+    </div>
+    <div class="task-summary" id="summaryPanel">
+      <strong>📄 Resumo Executivo</strong>
+      <div class="summary-content" id="summaryText">Aguardando conclusão da etapa...</div>
+    </div>
+  </aside>
+</div>
+
+<div id="toast" class="toast">⚠️ Mensagem</div>
+
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <strong style="color:var(--text-main); font-size:14px;">Adicionar Modelo</strong>
+    <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">Formato: provider/nome-do-modelo</p>
+    <input type="text" id="newModelId" placeholder="ex: google/gemini-pro">
+    <div class="modal-buttons">
+      <button id="cancelModalBtn" class="btn-modal btn-cancel">Cancelar</button>
+      <button id="confirmModalBtn" class="btn-modal btn-confirm">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ==================== CÓDIGO COMPLETO E CORRIGIDO (COM CONTINUIDADE) ====================
+  const SYSTEM_INSTRUCTIONS = `Você é um assistente de produtividade inteligente e especialista técnico.
+Diretrizes:
+1. Seja direto, estruturado e focado em resultados.
+2. Ao responder, divida informações complexas em listas ou etapas claras.
+3. Se for código, forneça exemplos práticos e explique a lógica.
+4. Mantenha um tom profissional e colaborativo.
+5. Priorize a clareza e a utilidade da informação.`;
+
+  let apiKey = localStorage.getItem('or_key') || '';
+  let chats = JSON.parse(localStorage.getItem('or_chats') || '[]');
+  let activeChatId = null;
+  let streaming = false;
+
+  const DEFAULT_MODELS = [
+    { id: 'openai/gpt-4o-mini', label: 'GPT-4o Mini' },
+    { id: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash' },
+    { id: 'anthropic/claude-3.5-haiku', label: 'Claude 3.5 Haiku' },
+    { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B' },
+    { id: 'deepseek/deepseek-chat-v3-0324', label: 'DeepSeek V3' }
+  ];
+  
+  let models = JSON.parse(localStorage.getItem('or_models') || 'null') || DEFAULT_MODELS;
+  let activeModel = localStorage.getItem('or_model') || models[0].id;
+  const PLANNING_MODEL = 'google/gemini-2.0-flash-001';
+
+  // ==================== [CONTINUAR] ESTADO DE MENSAGEM INCOMPLETA ====================
+  function markLastMessageAsIncomplete(chatId, partialContent, partialTasks) {
+    const chat = chats.find(c => c.id === chatId);
+    if (!chat) return;
+    chat.incompleteMessage = {
+      partialContent: partialContent || '',
+      partialTasks: partialTasks || null,
+      timestamp: Date.now()
+    };
+    saveState();
+  }
+
+  function clearIncompleteFlag(chatId) {
+    const chat = chats.find(c => c.id === chatId);
+    if (chat && chat.incompleteMessage) {
+      delete chat.incompleteMessage;
+      saveState();
+    }
+  }
+
+  function hasIncompleteMessage(chatId) {
+    const chat = chats.find(c => c.id === chatId);
+    return chat && chat.incompleteMessage ? true : false;
+  }
+
+  // ==================== UTILITÁRIOS ====================
+  function esc(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+  }
+
+  function toast(msg, type='info') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.borderColor = type === 'error' ? '#da3633' : 'var(--border)';
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  function saveState() {
+    localStorage.setItem('or_chats', JSON.stringify(chats));
+    localStorage.setItem('or_models', JSON.stringify(models));
+    localStorage.setItem('or_model', activeModel);
+    localStorage.setItem('or_key', apiKey);
+  }
+
+  // ==================== RENDERIZAÇÃO ====================
+  function renderConvList() {
+    const container = document.getElementById('convList');
+    if (!chats.length) {
+      container.innerHTML = '<div style="padding:1rem; text-align:center; color:var(--text-muted); font-size:12px;">Nenhum projeto salvo</div>';
+      return;
+    }
+    let html = '';
+    chats.forEach(chat => {
+      const activeClass = chat.id === activeChatId ? 'active' : '';
+      const date = new Date(chat.id).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+      let incompleteIcon = chat.incompleteMessage ? '⚠️ ' : '';
+      html += `
+        <button class="conv-item ${activeClass}" data-id="${chat.id}">
+          <span style="display:block; overflow:hidden; text-overflow:ellipsis;">${incompleteIcon}${esc(chat.title || 'Sem título')}</span>
+          <span style="font-size:10px; opacity:0.6; display:block; margin-top:2px;">${date}</span>
+          <button class="conv-del" data-id="${chat.id}" data-del="true">×</button>
+        </button>
+      `;
+    });
+    container.innerHTML = html;
+
+    container.querySelectorAll('.conv-item').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        if (e.target.classList.contains('conv-del')) return;
+        if (streaming) {
+          toast('Aguardando conclusão da resposta atual...', 'error');
+          return;
+        }
+        openChat(parseInt(btn.dataset.id));
+      });
+      const delBtn = btn.querySelector('.conv-del');
+      if (delBtn) {
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteChat(parseInt(delBtn.dataset.id));
+        });
+      }
+    });
+  }
+
+  function openChat(id) {
+    if (streaming) {
+      toast('Aguardando conclusão da resposta atual...', 'error');
+      return;
+    }
+    activeChatId = id;
+    const chat = chats.find(c => c.id === id);
+    if (!chat) return;
+    
+    document.getElementById('chatTitle').innerText = chat.title || 'Projeto Sem Título';
+    document.getElementById('chatSub').innerText = `Modelo: ${modelLabel(chat.model || activeModel)}`;
+    
+    renderMessages();
+    renderConvList();
+    renderModelBar();
+    renderTaskPanel(chat);
+    renderContinueButton(chat);
+    
+    if(window.innerWidth <= 900) {
+      document.getElementById('sidebar').classList.remove('open');
+    }
+  }
+
+  function renderContinueButton(chat) {
+    const existingBtn = document.getElementById('continueBtn');
+    if (existingBtn) existingBtn.remove();
+    
+    if (chat && chat.incompleteMessage && !streaming) {
+      // Seletor robusto: o último div filho dentro do chat-header
+      const btnGroup = document.querySelector('.chat-header > div:last-child');
+      if (!btnGroup) return;
+      const continueBtn = document.createElement('button');
+      continueBtn.id = 'continueBtn';
+      continueBtn.className = 'hdr-btn';
+      continueBtn.title = 'Continuar resposta interrompida';
+      continueBtn.textContent = '⏩';
+      continueBtn.style.cssText = 'background:#da3633;color:white;font-size:13px;';
+      continueBtn.onclick = () => continueIncompleteMessage(chat.id);
+      btnGroup.prepend(continueBtn);
+    }
+  }
+
+  async function continueIncompleteMessage(chatId) {
+    if (streaming) {
+      toast('Já existe uma resposta em andamento.', 'error');
+      return;
+    }
+    const chat = chats.find(c => c.id === chatId);
+    if (!chat || !chat.incompleteMessage) {
+      toast('Nenhuma mensagem incompleta para continuar.', 'error');
+      return;
+    }
+    
+    const { partialContent, partialTasks } = chat.incompleteMessage;
+    clearIncompleteFlag(chatId);
+    
+    // Remove a última mensagem de assistant se existir (estava incompleta)
+    const lastMsg = chat.messages[chat.messages.length - 1];
+    if (lastMsg && lastMsg.role === 'assistant') {
+      chat.messages.pop();
+    }
+    
+    // Prompt de continuação visível como mensagem de sistema
+    const continuationPrompt = `[Sistema: Continuar resposta anterior]\n\nContinue exatamente de onde parou, sem repetir o que já foi escrito. Texto parcial:\n\n${partialContent}\n\n↑ Continue a partir desse ponto mantendo estilo e completando a resposta.`;
+    
+    // Adiciona como mensagem do sistema visível no histórico
+    chat.messages.push({ role: 'system-visible', content: '⏩ Continuando resposta interrompida...' });
+    chat.messages.push({ role: 'user', content: continuationPrompt });
+    saveState();
+    renderMessages();
+    
+    await sendMessageInternal(continuationPrompt, chatId, { skipUserMessageAdd: true, partialTasks });
+  }
+
+  function deleteChat(id) {
+    if(!confirm('Excluir este projeto permanentemente?')) return;
+    chats = chats.filter(c => c.id !== id);
+    saveState();
+    if (activeChatId === id) {
+      if (chats.length) openChat(chats[0].id);
+      else newChat();
+    } else {
+      renderConvList();
+    }
+  }
+
+  function newChat() {
+    if (streaming) {
+      toast('Aguardando conclusão da resposta atual...', 'error');
+      return;
+    }
+    const newId = Date.now();
+    const newChatObj = {
+      id: newId,
+      title: 'Novo Projeto',
+      messages: [],
+      model: activeModel,
+      taskList: [],
+      plannedTasks: [],
+      finalSummary: '',
+      finalized: false
+    };
+    chats.unshift(newChatObj);
+    saveState();
+    openChat(newId);
+  }
+
+  function modelLabel(modelId) {
+    const m = models.find(m => m.id === modelId);
+    return m ? m.label : modelId.split('/').pop();
+  }
+
+  function renderModelBar() {
+    const bar = document.getElementById('modelBar');
+    let html = '';
+    models.forEach(m => {
+      const activeClass = m.id === activeModel ? 'active' : '';
+      html += `<button class="model-badge ${activeClass}" data-model="${m.id}">${esc(m.label)}</button>`;
+    });
+    html += `<button class="model-add" id="addModelBtn">+ Modelo</button>`;
+    bar.innerHTML = html;
+
+    bar.querySelectorAll('.model-badge').forEach(btn => {
+      btn.addEventListener('click', () => setActiveModel(btn.dataset.model));
+    });
+    document.getElementById('addModelBtn')?.addEventListener('click', openModal);
+  }
+
+  function setActiveModel(modelId) {
+    activeModel = modelId;
+    saveState();
+    const chat = chats.find(c => c.id === activeChatId);
+    if (chat) {
+      chat.model = modelId;
+      saveState();
+      document.getElementById('chatSub').innerText = `Modelo: ${modelLabel(modelId)}`;
+    }
+    renderModelBar();
+  }
+
+  const modal = document.getElementById('modal');
+  function openModal() { modal.classList.add('open'); document.getElementById('newModelId').focus(); }
+  function closeModal() { modal.classList.remove('open'); document.getElementById('newModelId').value = ''; }
+  function addModel() {
+    let val = document.getElementById('newModelId').value.trim();
+    if (!val || !val.includes('/')) { toast('Formato inválido: provider/modelo', 'error'); return; }
+    if (!models.some(m => m.id === val)) {
+      models.push({ id: val, label: val.split('/').pop() });
+      saveState();
+      renderModelBar();
+    }
+    setActiveModel(val);
+    closeModal();
+  }
+
+  // ==================== MENSAGENS & MARKDOWN ====================
+  function simpleMarkdown(text) {
+    if (!text) return '';
+    let s = esc(text);
+
+    // 1. Salva code blocks (``` ```) antes de qualquer outra transformação
+    const codeBlocks = [];
+    s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+      const ph = `\x00CODE${codeBlocks.length}\x00`;
+      codeBlocks.push(`<pre><code class="language-${lang || ''}">${code.trim()}</code></pre>`);
+      return ph;
+    });
+
+    // 2. Inline code
+    s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+
+    // 3. Bold e italic
+    s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // 4. Links
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+    // 5. Processa linha a linha
+    const lines = s.split('\n');
+    let inUl = false, inOl = false, inBlockquote = false;
+    const result = [];
+
+    const closeOpenBlocks = () => {
+      if (inUl)         { result.push('</ul>');         inUl = false; }
+      if (inOl)         { result.push('</ol>');         inOl = false; }
+      if (inBlockquote) { result.push('</blockquote>'); inBlockquote = false; }
+    };
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // Linha horizontal
+      if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+        closeOpenBlocks();
+        result.push('<hr style="border:none;border-top:1px solid var(--border);margin:12px 0;">');
+        continue;
+      }
+
+      // Headings ### ## #
+      const hMatch = trimmed.match(/^(#{1,3})\s+(.+)$/);
+      if (hMatch) {
+        closeOpenBlocks();
+        const level = hMatch[1].length;
+        const sizes = { 1: '1.3em', 2: '1.15em', 3: '1em' };
+        const weights = { 1: '700', 2: '650', 3: '600' };
+        const margins = { 1: '16px 0 8px', 2: '14px 0 6px', 3: '10px 0 4px' };
+        result.push(`<div style="font-size:${sizes[level]};font-weight:${weights[level]};color:var(--text-main);margin:${margins[level]};line-height:1.3;">${hMatch[2]}</div>`);
+        continue;
+      }
+
+      // Blockquote >
+      if (trimmed.startsWith('&gt;')) {
+        if (!inBlockquote) {
+          closeOpenBlocks();
+          result.push('<blockquote style="border-left:3px solid var(--accent);margin:6px 0;padding:4px 12px;color:var(--text-muted);background:rgba(88,166,255,0.05);border-radius:0 4px 4px 0;">');
+          inBlockquote = true;
+        }
+        result.push(`<div>${trimmed.replace(/^&gt;\s?/, '')}</div>`);
+        continue;
+      } else if (inBlockquote) {
+        result.push('</blockquote>');
+        inBlockquote = false;
+      }
+
+      // Lista não-ordenada - * +
+      if (trimmed.match(/^[-*+]\s+/)) {
+        if (inOl) { result.push('</ol>'); inOl = false; }
+        if (!inUl) { result.push('<ul style="padding-left:1.2rem;margin:4px 0;">'); inUl = true; }
+        result.push(`<li>${trimmed.substring(2)}</li>`);
+        continue;
+      }
+
+      // Lista ordenada 1. 2. etc
+      const olMatch = trimmed.match(/^\d+\.\s+(.+)$/);
+      if (olMatch) {
+        if (inUl) { result.push('</ul>'); inUl = false; }
+        if (!inOl) { result.push('<ol style="padding-left:1.2rem;margin:4px 0;">'); inOl = true; }
+        result.push(`<li>${olMatch[1]}</li>`);
+        continue;
+      }
+
+      // Linha normal
+      closeOpenBlocks();
+      result.push(line);
+    }
+
+    closeOpenBlocks();
+    s = result.join('\n');
+
+    // 6. Converte \n restantes em <br>, mas não dentro de bloco
+    s = s.replace(/\n/g, '<br>');
+
+    // 7. Restaura code blocks
+    s = s.replace(/\x00CODE(\d+)\x00/g, (_, i) => codeBlocks[parseInt(i)]);
+
+    return s;
+  }
+
+  function renderMessages() {
+    const container = document.getElementById('messages');
+    const chat = chats.find(c => c.id === activeChatId);
+    if (!chat || !chat.messages.length) {
+      container.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <div>
+          <strong>Pronto para começar?</strong><br>
+          Use <code>/wiki [termo]</code> para pesquisa ou descreva seu objetivo.
+        </div>
+      </div>`;
+      return;
+    }
+    let html = '';
+    chat.messages.forEach((msg, idx) => {
+      // Mensagem de sistema visível (ex: ⏩ continuação)
+      if (msg.role === 'system-visible') {
+        html += `<div style="text-align:center; font-size:11px; color:var(--text-muted); padding:4px 0; display:flex; align-items:center; gap:6px; justify-content:center;">
+          <span style="flex:1; height:1px; background:var(--border);"></span>
+          <span>${esc(msg.content)}</span>
+          <span style="flex:1; height:1px; background:var(--border);"></span>
+        </div>`;
+        return;
+      }
+      // Mensagem de continuação (prompt interno — oculta visualmente mas presente no histórico)
+      if (msg.role === 'user' && msg.content.startsWith('[Sistema: Continuar')) {
+        return; // não renderiza o prompt técnico
+      }
+
+      const roleClass = msg.role === 'user' ? 'user' : 'ai';
+      const roleLabel = msg.role === 'user' ? 'Você' : (msg.role === 'wikipedia' ? 'Wikipédia' : modelLabel(chat.model));
+      
+      const avatar = msg.role === 'user' 
+        ? `<div style="width:24px;height:24px;border-radius:50%;background:var(--user-bubble);display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:bold;">VC</div>`
+        : `<div style="width:24px;height:24px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:bold;">AI</div>`;
+
+      let incompleteBadge = '';
+      if (msg.role === 'assistant' && chat.incompleteMessage && idx === chat.messages.length-1) {
+        incompleteBadge = `<span style="margin-left:8px; background:#da3633; padding:2px 6px; border-radius:12px; font-size:9px; font-weight:bold;">⚠️ Incompleta</span>`;
+      }
+
+      html += `
+        <div class="msg ${roleClass}">
+          ${msg.role !== 'user' ? `<div class="msg-meta">${avatar} ${esc(roleLabel)}${incompleteBadge}</div>` : ''}
+          <div class="bubble">${simpleMarkdown(msg.content)}</div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+    container.scrollTop = container.scrollHeight;
+  }
+
+  // ==================== PAINEL DE TAREFAS ====================
+  function renderTaskPanel(chat) {
+    if(!chat) chat = chats.find(c => c.id === activeChatId);
+    if(!chat) return;
+
+    const taskListDiv = document.getElementById('taskList');
+    const summaryDiv = document.getElementById('summaryText');
+    const countSpan = document.getElementById('taskCount');
+    const progressBar = document.getElementById('progressBar');
+
+    const tasks = chat.taskList || [];
+    const planned = chat.plannedTasks || [];
+    const isFinalized = chat.finalized === true;
+
+    if (tasks.length) {
+      let html = '';
+      let doneCount = tasks.filter(t => t.done).length;
+
+      if (isFinalized && planned.length) {
+        const doneTasks    = tasks.filter(t => t.done);
+        const pendingTasks = tasks.filter(t => !t.done);
+        
+        html += `<div class="task-phase-label phase-done"><div class="dot"></div> Executado (${doneTasks.length})</div>`;
+        doneTasks.forEach(task => {
+          html += `<div class="task-item done">
+            <div class="task-check">✓</div>
+            <div>${esc(task.text)}</div>
+          </div>`;
+        });
+
+        if (pendingTasks.length) {
+          html += `<div class="task-phase-label phase-missed" style="margin-top:8px"><div class="dot"></div> Não coberto (${pendingTasks.length})</div>`;
+          pendingTasks.forEach(task => {
+            html += `<div class="task-item missed">
+              <div class="task-check"></div>
+              <div>${esc(task.text)}</div>
+            </div>`;
+          });
+        }
+
+        const pct = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
+        html += `<div class="task-coverage">
+          <span><div class="cov-dot" style="background:var(--success-bg)"></div>${doneCount} cobertas</span>
+          <span><div class="cov-dot" style="background:#da3633"></div>${pendingTasks.length} omitidas</span>
+        </div>`;
+      } else {
+        html += `<div class="task-phase-label phase-planned"><div class="dot"></div> Plano previsto</div>`;
+        tasks.forEach(task => {
+          const cls = task.done ? 'done' : 'pending';
+          html += `<div class="task-item ${cls}">
+            <div class="task-check">${task.done ? '✓' : ''}</div>
+            <div>${esc(task.text)}</div>
+          </div>`;
+        });
+      }
+
+      taskListDiv.innerHTML = html;
+      const total = tasks.length;
+      const percent = total === 0 ? 0 : Math.round((doneCount / total) * 100);
+      countSpan.innerText = `${doneCount}/${total}`;
+      progressBar.style.width = `${percent}%`;
+    } else {
+      taskListDiv.innerHTML = '<div style="color:var(--text-muted); text-align:center; margin-top:2rem; font-size:12px; line-height:1.4;">Nenhuma tarefa gerada ainda.</div>';
+      countSpan.innerText = `0/0`;
+      progressBar.style.width = `0%`;
+    }
+
+    summaryDiv.innerText = chat.finalSummary || 'O resumo executivo será gerado ao final da interação.';
+  }
+
+  // ==================== WIKIPEDIA ====================
+  async function fetchWikipedia(term) {
+    const url = `https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(term)}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const searchUrl = `https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(term)}&format=json&origin=*`;
+      const searchRes = await fetch(searchUrl);
+      const data = await searchRes.json();
+      if (data.query?.search?.length) {
+        const firstTitle = data.query.search[0].title;
+        const detailRes = await fetch(`https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(firstTitle)}`);
+        if (detailRes.ok) return await detailRes.json();
+      }
+      throw new Error('Não encontrado');
+    }
+    return await res.json();
+  }
+
+  async function handleWikiCommand(query) {
+    try {
+      const data = await fetchWikipedia(query);
+      const title = data.title;
+      const extract = data.extract || 'Sem resumo disponível.';
+      const pageUrl = data.content_urls?.desktop?.page || `https://pt.wikipedia.org/wiki/${encodeURIComponent(title)}`;
+      return `**📜 ${title}**\n\n${extract}\n\n[🔗 Ler artigo completo](${pageUrl})`;
+    } catch (err) {
+      return `❌ Não encontrei "**${query}**" na Wikipédia em português.`;
+    }
+  }
+
+  // ==================== ANÁLISE SEMÂNTICA ====================
+  function analyzeMessageStructure(message) {
+    let score = 0;
+    if (message.length > 100) score += 8;
+    if (message.length > 200) score += 5;
+    if (message.split(' ').length > 20) score += 6;
+    const complexWords = ['projeto', 'desenvolvimento', 'estratégia', 'análise', 'otimização', 'implemente', 'arquitetura', 'fluxo', 'algoritmo', 'refatore'];
+    complexWords.forEach(word => {
+      if (message.toLowerCase().includes(word)) score += 3;
+    });
+    if (message.includes('?') && message.split('?').length > 2) score += 4;
+    if (message.includes(' e ') || message.includes(' ou ')) score += 3;
+    const directCommands = ['defina', 'liste', 'cite', 'quem é'];
+    if (!directCommands.some(cmd => message.toLowerCase().startsWith(cmd))) {
+      score += 2;
+    }
+    return score;
+  }
+
+  function analyzeContext(history) {
+    let score = 0;
+    if (history.length > 0) {
+      const lastMessage = history[history.length - 1].content.toLowerCase();
+      const complexPatterns = ['planeje', 'projeto', 'desenvolva', 'estratégia', 'analise', 'otimize', 'implemente', 'arquitetura'];
+      if (complexPatterns.some(pattern => lastMessage.includes(pattern))) {
+        score += 5;
+      }
+    }
+    return score;
+  }
+
+  async function analyzeMessageComplexity(userMessage, history) {
+    const structureScore = analyzeMessageStructure(userMessage);
+    const contextScore = analyzeContext(history);
+    const totalScore = structureScore + contextScore;
+    if (totalScore >= 15) return { usePlanning: true, reason: 'Alta complexidade estrutural' };
+    if (totalScore >= 10) return { usePlanning: true, reason: 'Complexidade média' };
+    return { usePlanning: false, reason: 'Consulta simples' };
+  }
+
+  // ==================== FUNÇÕES AUXILIARES PARA PLANEJAMENTO ====================
+  async function callAI(messages, maxTokens = 600, temp = 0.7, specificModel = null, signal = null) {
+    if (!apiKey) throw new Error('Chave API não configurada');
+    const modelToUse = specificModel || activeModel;
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': location.href,
+        'X-Title': 'AI Manager'
+      },
+      body: JSON.stringify({
+        model: modelToUse,
+        messages: messages,
+        max_tokens: maxTokens,
+        temperature: temp
+      }),
+      signal: signal
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || `Erro HTTP ${response.status}`);
+    return data.choices[0].message.content;
+  }
+
+  async function generateTaskList(userMessage, history) {
+    const recentHistory = history.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
+    const prompt = `
+Contexto: Assistente de Produtividade.
+Histórico recente: ${recentHistory}
+Entrada do usuário: "${userMessage}"
+
+Crie uma lista de 3 a 5 tarefas objetivas e sequenciais que a IA deve cumprir nesta resposta para ser útil.
+Retorne APENAS a lista, cada item começando com "- ".
+`;
+    const content = await callAI([{ role: 'user', content: prompt }], 400, 0.3, PLANNING_MODEL);
+    const lines = content.split('\n');
+    const tasks = [];
+    for (let line of lines) {
+      line = line.trim();
+      if (line.startsWith('- ') || line.startsWith('* ')) {
+        tasks.push({ text: line.substring(2).trim(), done: false });
+      }
+    }
+    return tasks.length ? tasks : [{ text: 'Processar solicitação', done: false }];
+  }
+
+  async function updateTaskList(currentTasks, partialText, history, userMessage, signal) {
+    const taskLines = currentTasks.map((t, i) => `${i}: ${t.text}`).join('\n');
+    const prompt = `Você é um analisador de progresso de tarefas. Responda APENAS com JSON válido, sem markdown, sem explicações.
+
+Tarefas planejadas (em ordem):
+${taskLines}
+
+Texto gerado pela IA até agora:
+---
+${partialText.slice(-2000)}
+---
+
+Para cada tarefa, avalie se ela foi abordada/concluída no texto acima.
+Retorne SOMENTE este JSON (array com o mesmo número de itens, na mesma ordem):
+[{"text":"texto da tarefa","done":true},{"text":"outra tarefa","done":false}]`;
+
+    const raw = await callAI([{ role: 'user', content: prompt }], 600, 0.1, PLANNING_MODEL, signal);
+    const clean = raw.replace(/```json|```/gi, '').trim();
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed) && parsed.length === currentTasks.length) {
+      return parsed.map((item, i) => ({
+        text: item.text || currentTasks[i].text,
+        done: Boolean(item.done)
+      }));
+    }
+    throw new Error('JSON inválido ou incompatível');
+  }
+
+  async function generateFinalSummary(history, finalAnswer) {
+    const recentHistory = history.slice(-6).map(m => `${m.role === 'user' ? 'Usuário' : 'IA'}: ${m.content}`).join('\n');
+    const prompt = `Com base nesta interação e na resposta final da IA, escreva um resumo executivo em 1 ou 2 frases destacando decisões, dados relevantes e próximos passos. Seja direto e profissional.\n\nHistórico:\n${recentHistory}\n\nResposta final da IA:\n${finalAnswer}`;
+    return await callAI([{ role: 'user', content: prompt }], 200, 0.5, PLANNING_MODEL);
+  }
+
+  // ==================== LÓGICA PRINCIPAL COM PLANEJAMENTO SEMÂNTICO ====================
+  async function sendToAIWithSemanticPlanning(userMessage, chatId, options = {}) {
+    const { isContinuation = false, previousTasks = null } = options;
+    const chat = chats.find(c => c.id === chatId);
+    if (!chat) throw new Error('Chat não encontrado');
+
+    const history = chat.messages
+      .filter(m => m.role !== 'system-visible') // remove marcadores visuais
+      .map(m => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.content
+      }));
+
+    const complexityResult = isContinuation
+      ? { usePlanning: true }
+      : await analyzeMessageComplexity(userMessage, history);
+
+    // ── MODO SIMPLES: sem streaming, sem tasks ──
+    if (!complexityResult.usePlanning) {
+      toast('⚡ Resposta direta', 'info');
+      const messagesForAPI = [{ role: 'system', content: SYSTEM_INSTRUCTIONS }, ...history];
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': location.href,
+          'X-Title': 'AI Manager'
+        },
+        body: JSON.stringify({ model: activeModel, messages: messagesForAPI, max_tokens: 800, temperature: 0.7 })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || `Erro HTTP ${response.status}`);
+      const aiResponse = data.choices[0].message.content;
+      chat.taskList = []; chat.plannedTasks = []; chat.finalSummary = ''; chat.finalized = false;
+      clearIncompleteFlag(chatId);
+      saveState(); renderTaskPanel(chat);
+      chat.messages.push({ role: 'assistant', content: aiResponse });
+      saveState(); renderMessages();
+      return aiResponse;
+    }
+
+    // ── MODO COMPLEXO: stream + planejamento paralelo ──
+    toast('⚡ Iniciando...');
+    chat.finalized = false;
+    chat.plannedTasks = previousTasks || [];
+    chat.taskList = previousTasks || [];
+    clearIncompleteFlag(chatId);
+    saveState();
+
+    const messagesForAPI = [{ role: 'system', content: SYSTEM_INSTRUCTIONS }, ...history];
+
+    // Dispara a chamada de stream IMEDIATAMENTE (reduz latência percebida)
+    const streamAbortCtrl = new AbortController();
+    const streamPromise = fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': location.href,
+        'X-Title': 'AI Manager'
+      },
+      body: JSON.stringify({ model: activeModel, messages: messagesForAPI, stream: true }),
+      signal: streamAbortCtrl.signal
+    });
+
+    // Dispara geração de tasks EM PARALELO sem bloquear o stream
+    let tasks = previousTasks || [];
+    const taskPromise = (!isContinuation)
+      ? generateTaskList(userMessage, history).then(t => {
+          tasks = t;
+          chat.plannedTasks = tasks.map(t => ({ ...t }));
+          chat.taskList = tasks;
+          saveState(); renderTaskPanel(chat);
+          toast('📋 Plano gerado');
+        }).catch(err => {
+          console.error('Falha ao gerar tarefas', err);
+          if (!tasks.length) tasks = [{ text: 'Processar solicitação', done: false }];
+        })
+      : Promise.resolve();
+
+    // Aguarda a resposta HTTP do stream (headers) — não aguarda corpo
+    const response = await streamPromise;
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `Erro HTTP ${response.status}`);
+    }
+
+    // Prepara o div de resposta no DOM
+    const container = document.getElementById('messages');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'msg ai';
+    msgDiv.innerHTML = `<div class="msg-meta"><div style="width:24px;height:24px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:bold;">AI</div> ${modelLabel(activeModel)}</div><div class="bubble"></div>`;
+    container.appendChild(msgDiv);
+    const bubbleDiv = msgDiv.querySelector('.bubble');
+    container.scrollTop = container.scrollHeight;
+
+    // Lê o stream
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+    let buffer = '';
+    let lastUpdateLength = 0;
+    let taskUpdateCtrl = null;
+    let taskUpdatePromise = null;
+    let streamAborted = false;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // guarda linha incompleta
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(raw);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              fullText += delta;
+              bubbleDiv.innerHTML = simpleMarkdown(fullText);
+              container.scrollTop = container.scrollHeight;
+
+              // Atualiza tasks a cada 512 chars, cancelando update anterior
+              if (tasks.length && fullText.length - lastUpdateLength >= 512) {
+                lastUpdateLength = fullText.length;
+                if (taskUpdateCtrl) taskUpdateCtrl.abort();
+                taskUpdateCtrl = new AbortController();
+                const snap = fullText;
+                const sig = taskUpdateCtrl.signal;
+                taskUpdatePromise = updateTaskList(tasks, snap, history, userMessage, sig)
+                  .then(newTasks => {
+                    if (!sig.aborted && activeChatId === chat.id) {
+                      tasks = newTasks;
+                      chat.taskList = tasks;
+                      saveState(); renderTaskPanel(chat);
+                    }
+                  })
+                  .catch(err => { if (err.name !== 'AbortError') console.error('Task update err:', err); });
+              }
+            }
+          } catch (_) { /* JSON incompleto, ignora */ }
+        }
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        streamAborted = true;
+      } else {
+        streamAborted = true;
+        console.error('Stream interrompido:', err);
+        if (fullText.length > 0) {
+          markLastMessageAsIncomplete(chatId, fullText, tasks);
+          toast('Resposta interrompida. Use ⏩ para continuar.', 'error');
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    // Cancela updates de task pendentes
+    if (taskUpdateCtrl) taskUpdateCtrl.abort();
+    if (taskUpdatePromise) await taskUpdatePromise.catch(() => {});
+
+    // Aguarda task list terminar de ser gerada (se ainda não terminou)
+    await taskPromise.catch(() => {});
+
+    if (!streamAborted) {
+      // Update final de tasks
+      if (tasks.length) {
+        try {
+          toast('📋 Analisando cobertura final...');
+          const finalTasks = await updateTaskList(tasks, fullText, history, userMessage, new AbortController().signal);
+          tasks = finalTasks;
+          chat.taskList = tasks;
+          chat.finalized = true;
+          saveState(); renderTaskPanel(chat);
+        } catch(e) {
+          chat.finalized = true;
+          saveState();
+        }
+      }
+
+      // Resumo executivo
+      try {
+        toast('📄 Gerando resumo...');
+        const summary = await generateFinalSummary(history, fullText);
+        chat.finalSummary = summary;
+        saveState(); renderTaskPanel(chat);
+      } catch(e) { console.error('Erro resumo:', e); }
+
+      chat.messages.push({ role: 'assistant', content: fullText });
+      saveState();
+      msgDiv.remove();
+      renderMessages();
+    } else {
+      if (fullText.length > 0) {
+        markLastMessageAsIncomplete(chatId, fullText, tasks);
+      }
+      msgDiv.remove();
+      renderMessages();
+      renderContinueButton(chat);
+    }
+
+    return fullText;
+  }
+
+  // ==================== CONTROLES PRINCIPAIS ====================
+  async function sendMessageInternal(text, chatId, options = {}) {
+    const { skipUserMessageAdd = false, partialTasks = null } = options;
+    let chat = chats.find(c => c.id === chatId);
+    if (!chat) throw new Error('Chat não encontrado');
+
+    if (!skipUserMessageAdd) {
+      chat.messages.push({ role: 'user', content: text });
+      saveState();
+      renderMessages();
+    }
+
+    const wikiMatch = text.match(/^\/wiki\s+(.+)$/i);
+    if (wikiMatch) {
+      streaming = true;
+      const query = wikiMatch[1];
+      const container = document.getElementById('messages');
+      const thinkDiv = document.createElement('div');
+      thinkDiv.className = 'msg ai';
+      thinkDiv.innerHTML = `<div class="msg-meta">🌐 Wikipédia</div><div class="bubble"><div class="thinking-dots"><div class="td"></div><div class="td"></div><div class="td"></div></div></div>`;
+      container.appendChild(thinkDiv);
+      container.scrollTop = container.scrollHeight;
+
+      const result = await handleWikiCommand(query);
+      thinkDiv.remove();
+      chat.messages.push({ role: 'assistant', content: result });
+      saveState();
+      renderMessages();
+      streaming = false;
+      return;
+    }
+
+    if (!apiKey || apiKey.length < 10) {
+      toast('⚠️ Configure sua chave OpenRouter na lateral', 'error');
+      return;
+    }
+
+    streaming = true;
+    document.getElementById('sendBtn').disabled = true;
+
+    const container = document.getElementById('messages');
+    const thinkDiv = document.createElement('div');
+    thinkDiv.className = 'msg ai';
+    thinkDiv.innerHTML = `<div class="msg-meta">Analisando...</div><div class="bubble"><div class="thinking-dots"><div class="td"></div><div class="td"></div><div class="td"></div></div></div>`;
+    container.appendChild(thinkDiv);
+    container.scrollTop = container.scrollHeight;
+
+    try {
+      await sendToAIWithSemanticPlanning(text, chatId, { 
+        isContinuation: !!options.partialTasks,
+        previousPartial: '',
+        previousTasks: partialTasks
+      });
+      thinkDiv.remove();
+    } catch (err) {
+      thinkDiv.remove();
+      toast(`Erro: ${err.message}`, 'error');
+      const stillSameChat = chats.find(c => c.id === chatId);
+      if (stillSameChat) {
+        stillSameChat.messages.push({ role: 'assistant', content: `❌ Erro: ${err.message}` });
+        saveState();
+        renderMessages();
+      }
+    } finally {
+      streaming = false;
+      document.getElementById('sendBtn').disabled = false;
+      renderContinueButton(chat);
+    }
+  }
+
+  async function sendMessage() {
+    if (streaming) return;
+    const input = document.getElementById('msgIn');
+    const text = input.value.trim();
+    if (!text) return;
+    
+    input.value = '';
+    input.style.height = 'auto';
+
+    let chat = chats.find(c => c.id === activeChatId);
+    if (!chat) { newChat(); chat = chats.find(c => c.id === activeChatId); }
+
+    if (!chat.messages.length && !text.startsWith('/')) {
+      chat.title = text.slice(0, 30) + (text.length > 30 ? '...' : '');
+      document.getElementById('chatTitle').innerText = chat.title;
+      saveState();
+      renderConvList();
+    }
+
+    await sendMessageInternal(text, chat.id, { skipUserMessageAdd: false });
+  }
+
+  // ==================== PAINÉIS: RESIZE + TOGGLE ====================
+  (function initPanels() {
+    const sidebar = document.getElementById('sidebar');
+    const taskPanel = document.getElementById('taskPanel');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const taskToggle = document.getElementById('taskToggle');
+    const resizeSidebar = document.getElementById('resizeSidebar');
+    const resizeTask = document.getElementById('resizeTask');
+
+    // Estado salvo — parse explícito para evitar bugs com string 'false'
+    let sidebarW = parseInt(localStorage.getItem('panel_sidebar_w')) || 260;
+    let taskW = parseInt(localStorage.getItem('panel_task_w')) || 300;
+    const _sidebarSaved = localStorage.getItem('panel_sidebar_open');
+    const _taskSaved = localStorage.getItem('panel_task_open');
+    let sidebarOpen = _sidebarSaved === null ? true : _sidebarSaved === 'true';
+    let taskOpen = _taskSaved === null ? true : _taskSaved === 'true';
+
+    function applySidebar() {
+      if (sidebarOpen) {
+        sidebar.classList.remove('collapsed');
+        sidebar.style.width = sidebarW + 'px';
+        sidebarToggle.style.left = sidebarW + 'px';
+        sidebarToggle.textContent = '◀';
+      } else {
+        sidebar.classList.add('collapsed');
+        sidebar.style.width = '0';
+        sidebarToggle.style.left = '0';
+        sidebarToggle.textContent = '▶';
+      }
+      localStorage.setItem('panel_sidebar_open', sidebarOpen);
+    }
+
+    function applyTask() {
+      if (taskOpen) {
+        taskPanel.classList.remove('collapsed');
+        taskPanel.style.width = taskW + 'px';
+        taskToggle.style.right = taskW + 'px';
+        taskToggle.textContent = '▶';
+      } else {
+        taskPanel.classList.add('collapsed');
+        taskPanel.style.width = '0';
+        taskToggle.style.right = '0';
+        taskToggle.textContent = '◀';
+      }
+      localStorage.setItem('panel_task_open', taskOpen);
+    }
+
+    sidebarToggle.addEventListener('click', () => {
+      sidebarOpen = !sidebarOpen;
+      applySidebar();
+    });
+
+    taskToggle.addEventListener('click', () => {
+      taskOpen = !taskOpen;
+      applyTask();
+    });
+
+    // Drag resize sidebar
+    let draggingSidebar = false;
+    resizeSidebar.addEventListener('mousedown', e => {
+      draggingSidebar = true;
+      resizeSidebar.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', e => {
+      if (!draggingSidebar) return;
+      const newW = Math.max(160, Math.min(480, e.clientX));
+      sidebarW = newW;
+      sidebar.style.width = newW + 'px';
+      sidebarToggle.style.left = newW + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+      if (draggingSidebar) {
+        draggingSidebar = false;
+        resizeSidebar.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        localStorage.setItem('panel_sidebar_w', sidebarW);
+      }
+    });
+
+    // Drag resize task panel
+    let draggingTask = false;
+    resizeTask.addEventListener('mousedown', e => {
+      draggingTask = true;
+      resizeTask.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', e => {
+      if (!draggingTask) return;
+      const rightEdge = window.innerWidth;
+      const newW = Math.max(180, Math.min(520, rightEdge - e.clientX));
+      taskW = newW;
+      taskPanel.style.width = newW + 'px';
+      taskToggle.style.right = newW + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+      if (draggingTask) {
+        draggingTask = false;
+        resizeTask.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        localStorage.setItem('panel_task_w', taskW);
+      }
+    });
+
+    // Init
+    applySidebar();
+    applyTask();
+  })();
+
+  // ==================== INIT ====================
+  function init() {
+    const keyInput = document.getElementById('apiKeyInput');
+    const keyDot = document.getElementById('keyDot');
+    const keyHint = document.getElementById('keyHint');
+
+    if (apiKey) {
+      keyInput.value = apiKey;
+      keyDot.classList.add('ok');
+      keyHint.innerText = 'API Conectada';
+    } else {
+      keyDot.classList.add('bad');
+      keyHint.innerText = 'Sem Chave';
+    }
+
+    keyInput.addEventListener('input', (e) => {
+      apiKey = e.target.value.trim();
+      saveState();
+      if (apiKey.length > 10) {
+        keyDot.classList.replace('bad', 'ok');
+        keyHint.innerText = 'API Conectada';
+      } else {
+        keyDot.classList.replace('ok', 'bad');
+        keyHint.innerText = 'Sem Chave';
+      }
+    });
+
+    document.getElementById('newChatBtn').addEventListener('click', newChat);
+    document.getElementById('clearAllBtn').addEventListener('click', () => {
+      if(confirm('Apagar TODOS os projetos?')) { chats = []; saveState(); newChat(); }
+    });
+    document.getElementById('clearMsgBtn').addEventListener('click', () => {
+      const chat = chats.find(c => c.id === activeChatId);
+      if(chat) { 
+        chat.messages = []; 
+        chat.taskList = []; 
+        chat.plannedTasks = []; 
+        chat.finalSummary = ''; 
+        chat.finalized = false;
+        clearIncompleteFlag(activeChatId);
+        saveState(); 
+        renderMessages(); 
+        renderTaskPanel(chat);
+        renderContinueButton(chat);
+      }
+    });
+    
+    document.getElementById('contextBtn').addEventListener('click', () => {
+       const input = document.getElementById('msgIn');
+       input.value = SYSTEM_INSTRUCTIONS + "\n\n" + input.value;
+       input.focus();
+       toast("📋 Instruções de sistema injetadas");
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const chat = chats.find(c => c.id === activeChatId);
+      if(!chat) return;
+      let text = `# RELATÓRIO: ${chat.title}\n`;
+      text += `Data: ${new Date().toLocaleDateString()}\n\n`;
+      text += `## 📋 Plano de Ação\n`;
+      text += chat.taskList.length ? chat.taskList.map(t => `- [${t.done?'x':' '}] ${t.text}`).join('\n') : 'Nenhum plano gerado.';
+      text += `\n\n## 📄 Resumo Executivo\n${chat.finalSummary || 'Nenhum resumo.'}\n\n---\n\n## 💬 Transcrição\n\n`;
+      text += chat.messages.map(m => `**[${m.role.toUpperCase()}]**: ${m.content}`).join('\n\n');
+      
+      const blob = new Blob([text], {type:'text/markdown'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${chat.title.replace(/[^a-z0-9]/gi,'_')}.md`;
+      a.click();
+    });
+
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    const msgIn = document.getElementById('msgIn');
+    msgIn.addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }});
+    msgIn.addEventListener('input', function(){ this.style.height='auto'; this.style.height=Math.min(150, this.scrollHeight)+'px'; });
+
+    document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
+    document.getElementById('confirmModalBtn').addEventListener('click', addModel);
+    modal.addEventListener('click', e => { if(e.target===modal) closeModal(); });
+
+    if(!chats.length) newChat();
+    else openChat(chats[0].id);
+  }
+
+  init();
+</script>
+</body>
+</html>
